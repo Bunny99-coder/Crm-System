@@ -1,0 +1,3 @@
+DROP TABLE IF EXISTS leads;
+DROP TABLE IF EXISTS lead_statuses;
+DROP TABLE IF EXISTS lead_sources;

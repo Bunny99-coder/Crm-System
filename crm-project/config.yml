@@ -1,0 +1,9 @@
+# config.yml
+server:
+  port: ":8080"
+
+database:
+  url: "postgres://crm_user:postgres@localhost:5432/crm_db?sslmode=disable"
+
+  auth:
+  jwt_secret: "a-very-super-secret-key-that-is-long-and-random"

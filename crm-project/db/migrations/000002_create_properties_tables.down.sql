@@ -1,0 +1,3 @@
+DROP TABLE IF EXISTS properties;
+DROP TABLE IF EXISTS property_types;
+DROP TABLE IF EXISTS sites;
