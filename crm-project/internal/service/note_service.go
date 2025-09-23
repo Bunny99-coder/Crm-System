@@ -1,90 +1,133 @@
-// Replace the contents of internal/service/note_service.go
 package service
 
 import (
-	"context"
-	"crm-project/internal/models"
-	"crm-project/internal/repository/postgres"
-	"database/sql"
 	"errors"
 	"fmt"
-	"log/slog"
-	"time"
+
+	"crm-project/internal/models"
+	"crm-project/internal/repository/postgres"
 )
 
 type NoteService struct {
-	noteRepo *postgres.NoteRepo
-	userRepo *postgres.UserRepo
-	logger   *slog.Logger
+	noteRepo postgres.NoteRepository
 }
 
-func NewNoteService(nr *postgres.NoteRepo, ur *postgres.UserRepo, logger *slog.Logger) *NoteService {
-	return &NoteService{noteRepo: nr, userRepo: ur, logger: logger}
+func NewNoteService(noteRepo postgres.NoteRepository) *NoteService {
+	return &NoteService{noteRepo: noteRepo}
 }
 
-func (s *NoteService) CreateNote(ctx context.Context, n models.Note) (int, error) {
-	if n.NoteText == "" {
-		return 0, errors.New("note text cannot be empty")
+// CreateNote creates a new note
+func (s *NoteService) CreateNote(note *models.Note) error {
+	if note.Content == "" {
+		return errors.New("note content cannot be empty")
 	}
-	if _, err := s.userRepo.GetByID(ctx, n.UserID); err != nil {
-		return 0, fmt.Errorf("invalid user_id: %d", n.UserID)
+	
+	if note.UserID == 0 {
+		return errors.New("user ID is required")
 	}
-	if n.NoteDate.IsZero() {
-		n.NoteDate = time.Now()
-	}
-	return s.noteRepo.Create(ctx, n)
+	
+	return s.noteRepo.CreateNote(note)
 }
 
-
-// in internal/service/note_service.go
-func (s *NoteService) GetAllNotes(ctx context.Context) ([]models.Note, error) {
-	return s.noteRepo.GetAll(ctx)
-}
-
-func (s *NoteService) GetNotesByUser(ctx context.Context, userID int) ([]models.Note, error) {
-	if _, err := s.userRepo.GetByID(ctx, userID); err != nil {
-		return nil, fmt.Errorf("invalid user_id: %d", userID)
+// GetNoteByID retrieves a note by its ID
+func (s *NoteService) GetNoteByID(id int) (*models.Note, error) {
+	if id <= 0 {
+		return nil, errors.New("invalid note ID")
 	}
-	return s.noteRepo.GetAllByUser(ctx, userID)
+	
+	return s.noteRepo.GetNoteByID(id)
 }
 
-func (s *NoteService) GetNoteByID(ctx context.Context, id int) (*models.Note, error) {
-	note, err := s.noteRepo.GetByID(ctx, id)
+// GetNotesByContactID retrieves all notes for a specific contact
+func (s *NoteService) GetNotesByContactID(contactID int) ([]models.Note, error) {
+	if contactID <= 0 {
+		return nil, errors.New("invalid contact ID")
+	}
+	
+	return s.noteRepo.GetNotesByContactID(contactID)
+}
+
+// UpdateNote updates an existing note
+func (s *NoteService) UpdateNote(note *models.Note) error {
+	if note.ID <= 0 {
+		return errors.New("invalid note ID")
+	}
+	
+	if note.Content == "" {
+		return errors.New("note content cannot be empty")
+	}
+	
+	// Verify the note exists first
+	existingNote, err := s.noteRepo.GetNoteByID(note.ID)
 	if err != nil {
-		return nil, err
+		return fmt.Errorf("failed to verify note existence: %w", err)
 	}
-	if note == nil {
-		return nil, fmt.Errorf("note with ID %d not found", id)
+	
+	// Ensure user can only update their own notes (optional security check)
+	if note.UserID != 0 && existingNote.UserID != note.UserID {
+		return errors.New("unauthorized to update this note")
 	}
-	return note, nil
+	
+	return s.noteRepo.UpdateNote(note)
 }
 
-func (s *NoteService) UpdateNote(ctx context.Context, id int, n models.Note) error {
-	_, err := s.GetNoteByID(ctx, id)
-	if err != nil {
-		return err
+// DeleteNote deletes a note
+func (s *NoteService) DeleteNote(id int) error {
+	if id <= 0 {
+		return errors.New("invalid note ID")
 	}
-	n.ID = id
-	if n.NoteText == "" {
-		return errors.New("note text cannot be empty")
-	}
-	err = s.noteRepo.Update(ctx, n)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return fmt.Errorf("note with ID %d not found during update", id)
-		}
-		return err
-	}
-	return nil
+	
+	return s.noteRepo.DeleteNote(id)
 }
 
-func (s *NoteService) DeleteNote(ctx context.Context, id int) error {
-	err := s.noteRepo.Delete(ctx, id)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return fmt.Errorf("note with ID %d not found", id)
-		}
-		return err
+// GetNotesByUserID retrieves all notes created by a specific user
+func (s *NoteService) GetNotesByUserID(userID int) ([]models.Note, error) {
+	if userID <= 0 {
+		return nil, errors.New("invalid user ID")
 	}
-	return nil
+	
+	return s.noteRepo.GetNotesByUserID(userID)
+}
+
+
+
+
+
+
+
+func (s *NoteService) GetNotesByDealID(dealID int) ([]models.Note, error) {
+	if dealID <= 0 {
+		return nil, errors.New("invalid deal ID")
+	}
+	return s.noteRepo.GetNotesByDealID(dealID)
+}
+
+func (s *NoteService) CreateDealNote(note *models.Note) error {
+	if note.Content == "" {
+		return errors.New("note content cannot be empty")
+	}
+	if note.UserID == 0 {
+		return errors.New("user ID is required")
+	}
+	if note.DealID == nil || *note.DealID <= 0 {
+		return errors.New("deal ID is required")
+	}
+	return s.noteRepo.CreateDealNote(note)
+}
+
+func (s *NoteService) UpdateDealNote(note *models.Note) error {
+	if note.ID <= 0 {
+		return errors.New("invalid note ID")
+	}
+	if note.Content == "" {
+		return errors.New("note content cannot be empty")
+	}
+	return s.noteRepo.UpdateDealNote(note)
+}
+
+func (s *NoteService) DeleteDealNote(id int) error {
+	if id <= 0 {
+		return errors.New("invalid note ID")
+	}
+	return s.noteRepo.DeleteDealNote(id)
 }

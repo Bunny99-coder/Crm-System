@@ -16,4 +16,5 @@ type Contact struct {
 	SubCity        *string   `db:"sub_city"        json:"sub_city,omitempty"`
 	ContactSource  *string   `db:"contact_source"  json:"contact_source,omitempty"`
 	CreatedAt      time.Time `db:"created_at"      json:"created_at"`
+	CreatedBy      *int      `db:"created_by" json:"created_by,omitempty"`
 }

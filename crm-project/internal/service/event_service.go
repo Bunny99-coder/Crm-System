@@ -1,92 +1,145 @@
-// Replace the contents of internal/service/event_service.go
 package service
 
 import (
-	"context"
-	"crm-project/internal/models"
-	"crm-project/internal/repository/postgres"
-	"database/sql"
 	"errors"
 	"fmt"
-	"log/slog"
+
+	"crm-project/internal/models"
+	"crm-project/internal/repository/postgres"
 )
 
 type EventService struct {
-	eventRepo *postgres.EventRepo
-	userRepo  *postgres.UserRepo
-	logger    *slog.Logger
+	eventRepo postgres.EventRepository
 }
 
-func NewEventService(er *postgres.EventRepo, ur *postgres.UserRepo, logger *slog.Logger) *EventService {
-	return &EventService{eventRepo: er, userRepo: ur, logger: logger}
+func NewEventService(eventRepo postgres.EventRepository) *EventService {
+	return &EventService{eventRepo: eventRepo}
 }
 
-func (s *EventService) CreateEvent(ctx context.Context, e models.Event) (int, error) {
-	if e.EventName == "" {
-		return 0, errors.New("event name is required")
+// CreateEvent creates a new event
+func (s *EventService) CreateEvent(event *models.Event) error {
+	if event.EventName == "" {
+		return errors.New("event name cannot be empty")
 	}
-	if e.EndTime.Before(e.StartTime) {
-		return 0, errors.New("end time must be after start time")
+	if event.OrganizerID == 0 {
+		return errors.New("organizer ID is required")
 	}
-	if _, err := s.userRepo.GetByID(ctx, e.OrganizerID); err != nil {
-		return 0, fmt.Errorf("invalid organizer_id: %d", e.OrganizerID)
+	if event.StartTime.After(event.EndTime) {
+		return errors.New("start time must be before end time")
 	}
-	return s.eventRepo.Create(ctx, e)
+
+	return s.eventRepo.CreateEvent(event)
 }
 
-// in event_service.go
-func (s *EventService) GetAllEvents(ctx context.Context) ([]models.Event, error) {
-	return s.eventRepo.GetAll(ctx)
-}
-
-func (s *EventService) GetEventsForUser(ctx context.Context, organizerID int) ([]models.Event, error) {
-	if _, err := s.userRepo.GetByID(ctx, organizerID); err != nil {
-		return nil, fmt.Errorf("invalid user_id: %d", organizerID)
+// GetEventByID retrieves an event by ID
+func (s *EventService) GetEventByID(id int) (*models.Event, error) {
+	if id <= 0 {
+		return nil, errors.New("invalid event ID")
 	}
-	return s.eventRepo.GetAllForUser(ctx, organizerID)
+
+	return s.eventRepo.GetEventByID(id)
 }
 
-func (s *EventService) GetEventByID(ctx context.Context, id int) (*models.Event, error) {
-	event, err := s.eventRepo.GetByID(ctx, id)
+// GetEventsByDealID retrieves all events for a specific deal
+func (s *EventService) GetEventsByDealID(dealID int) ([]models.Event, error) {
+	if dealID <= 0 {
+		return nil, errors.New("invalid deal ID")
+	}
+
+	return s.eventRepo.GetEventsByDealID(dealID)
+}
+
+// GetAllEvents retrieves all events
+func (s *EventService) GetAllEvents() ([]models.Event, error) {
+	return s.eventRepo.GetAllEvents()
+}
+
+// UpdateEvent updates an existing event
+func (s *EventService) UpdateEvent(event *models.Event) error {
+	if event.ID <= 0 {
+		return errors.New("invalid event ID")
+	}
+	if event.EventName == "" {
+		return errors.New("event name cannot be empty")
+	}
+	if event.OrganizerID == 0 {
+		return errors.New("organizer ID is required")
+	}
+
+	existingEvent, err := s.eventRepo.GetEventByID(event.ID)
 	if err != nil {
-		return nil, err
+		return fmt.Errorf("failed to verify event existence: %w", err)
 	}
-	if event == nil {
-		return nil, fmt.Errorf("event with ID %d not found", id)
+
+	if existingEvent.OrganizerID != event.OrganizerID {
+		return errors.New("unauthorized to update this event")
 	}
-	return event, nil
+
+	return s.eventRepo.UpdateEvent(event)
 }
 
-func (s *EventService) UpdateEvent(ctx context.Context, id int, e models.Event) error {
-	_, err := s.GetEventByID(ctx, id)
-	if err != nil {
-		return err
-	}
-	e.ID = id
-	if e.EventName == "" {
-		return errors.New("event name is required")
-	}
-	if e.EndTime.Before(e.StartTime) {
-		return errors.New("end time must be after start time")
+// DeleteEvent soft deletes an event
+func (s *EventService) DeleteEvent(id int) error {
+	if id <= 0 {
+		return errors.New("invalid event ID")
 	}
 
-	err = s.eventRepo.Update(ctx, e)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return fmt.Errorf("event with ID %d not found during update", id)
-		}
-		return err
-	}
-	return nil
+	return s.eventRepo.DeleteEvent(id)
 }
 
-func (s *EventService) DeleteEvent(ctx context.Context, id int) error {
-	err := s.eventRepo.Delete(ctx, id)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return fmt.Errorf("event with ID %d not found", id)
-		}
-		return err
+// GetEventsForUser retrieves events for a specific user
+func (s *EventService) GetEventsForUser(userID int) ([]models.Event, error) {
+	if userID <= 0 {
+		return nil, errors.New("invalid user ID")
 	}
-	return nil
+
+	return s.eventRepo.GetEventsForUser(userID)
+}
+
+// CreateDealEvent creates a new event for a deal (nested route)
+func (s *EventService) CreateDealEvent(event *models.Event) error {
+	if event.EventName == "" {
+		return errors.New("event name cannot be empty")
+	}
+	if event.OrganizerID == 0 {
+		return errors.New("organizer ID is required")
+	}
+	if event.DealID == nil || *event.DealID <= 0 {
+		return errors.New("deal ID is required")
+	}
+	if event.StartTime.After(event.EndTime) {
+		return errors.New("start time must be before end time")
+	}
+
+	return s.eventRepo.CreateEvent(event)
+}
+
+// UpdateDealEvent updates an event for a deal
+func (s *EventService) UpdateDealEvent(event *models.Event) error {
+	if event.ID <= 0 {
+		return errors.New("invalid event ID")
+	}
+	if event.EventName == "" {
+		return errors.New("event name cannot be empty")
+	}
+
+	existingEvent, err := s.eventRepo.GetEventByID(event.ID)
+	if err != nil {
+		return fmt.Errorf("failed to verify event existence: %w", err)
+	}
+
+	if existingEvent.DealID == nil || *existingEvent.DealID != *event.DealID {
+		return errors.New("event not found for this deal")
+	}
+
+	return s.eventRepo.UpdateEvent(event)
+}
+
+// DeleteDealEvent deletes an event for a deal
+func (s *EventService) DeleteDealEvent(id int) error {
+	if id <= 0 {
+		return errors.New("invalid event ID")
+	}
+
+	return s.eventRepo.DeleteEvent(id)
 }

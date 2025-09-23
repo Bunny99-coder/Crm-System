@@ -38,41 +38,53 @@ func (r *ContactRepo) GetAll(ctx context.Context) ([]models.Contact, error) {
 }
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
 // Add this method to your contact_repo.go file
 
 // Create inserts a new contact into the database.
-// It returns the ID of the newly created contact.
-func (r *ContactRepo) Create(ctx context.Context, contact models.Contact) (int, error) {
-	var newContactID int
 
-	// Note the 'RETURNING contact_id' clause. This is a PostgreSQL feature
-	// that allows us to get the ID of the new row immediately.
-	query := `INSERT INTO contacts (first_name, last_name, email, primary_phone, secondary_phone, address, city, sub_city, contact_source)
-              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-              RETURNING contact_id`
-
-	// db.QueryRowx is used for queries that are expected to return a single row.
-	// We then use .Scan() to assign the returned value to our variable.
-	err := r.db.QueryRowxContext(
-		ctx,
-		query,
-		contact.FirstName,
-		contact.LastName,
-		contact.Email,
-		contact.PrimaryPhone,
-		contact.SecondaryPhone,
-		contact.Address,
-		contact.City,
-		contact.SubCity,
-		contact.ContactSource,
-	).Scan(&newContactID)
-
-	if err != nil {
-		return 0, err
-	}
-
-	return newContactID, nil
+func (r *ContactRepo) Create(ctx context.Context, c models.Contact) (int, error) {
+	var newID int
+	query := `INSERT INTO contacts (
+				first_name, last_name, email, primary_phone, secondary_phone,
+				address, city, sub_city, contact_source, created_by
+			  ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+			  RETURNING contact_id`
+	err := r.db.QueryRowxContext(ctx, query,
+		c.FirstName, c.LastName, c.Email, c.PrimaryPhone, c.SecondaryPhone,
+		c.Address, c.City, c.SubCity, c.ContactSource, c.CreatedBy,
+	).Scan(&newID)
+	return newID, err
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 // GetByID retrieves a single contact from the database by its ID.
@@ -174,4 +186,12 @@ func (r *ContactRepo) Delete(ctx context.Context, id int) error {
 	}
 
 	return nil
+}
+
+// in contact_repo.go
+func (r *ContactRepo) GetAllForUser(ctx context.Context, userID int) ([]models.Contact, error) {
+    var contacts []models.Contact
+    query := `SELECT * FROM contacts WHERE created_by = $1 ORDER BY created_at DESC`
+    err := r.db.SelectContext(ctx, &contacts, query, userID)
+    return contacts, err
 }

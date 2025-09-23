@@ -1,98 +1,151 @@
-// Replace the contents of internal/service/task_service.go
 package service
 
 import (
-	"context"
-	"crm-project/internal/models"
-	"crm-project/internal/repository/postgres"
-	"database/sql"
-	"errors"
-	"fmt"
-	"log/slog"
-	"time"
+    "errors"
+    "fmt"
+
+    "crm-project/internal/models"
+    "crm-project/internal/repository/postgres"
 )
 
 type TaskService struct {
-	taskRepo *postgres.TaskRepo
-	userRepo *postgres.UserRepo
-	logger   *slog.Logger
+    taskRepo postgres.TaskRepository
 }
 
-func NewTaskService(tr *postgres.TaskRepo, ur *postgres.UserRepo, logger *slog.Logger) *TaskService {
-	return &TaskService{taskRepo: tr, userRepo: ur, logger: logger}
+func NewTaskService(taskRepo postgres.TaskRepository) *TaskService {
+    return &TaskService{taskRepo: taskRepo}
 }
 
-func (s *TaskService) CreateTask(ctx context.Context, t models.Task) (int, error) {
-	if t.TaskName == "" {
-		return 0, errors.New("task name is required")
-	}
-	// in task_service.go -> CreateTask
+// CreateTask creates a new task
+func (s *TaskService) CreateTask(task *models.Task) error {
+    if task.TaskName == "" {
+        return errors.New("task name cannot be empty")
+    }
+    if task.AssignedTo == 0 {
+        return errors.New("assigned_to ID is required")
+    }
+    if task.DueDate.IsZero() {
+        return errors.New("due date is required")
+    }
+    if task.Status == "" {
+        task.Status = "Pending" // Default status
+    }
 
-	if t.DueDate.IsZero() {
-		return 0, errors.New("due date is required")
-	}
-
-	// Get the current time
-	now := time.Now()
-	// Get the beginning of today (Year, Month, Day, at 00:00:00) in the server's location
-	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-
-	// Check if the due date is before the start of today
-	if t.DueDate.Before(today) {
-		return 0, errors.New("due date cannot be in the past")
-	}
-	if _, err := s.userRepo.GetByID(ctx, t.AssignedTo); err != nil {
-		return 0, fmt.Errorf("invalid assigned_to user id: %d", t.AssignedTo)
-	}
-	// Default status if not provided
-	if t.Status == "" {
-		t.Status = "Pending"
-	}
-	return s.taskRepo.Create(ctx, t)
+    return s.taskRepo.CreateTask(task)
 }
 
-func (s *TaskService) GetAllTasks(ctx context.Context) ([]models.Task, error) {
-	return s.taskRepo.GetAll(ctx)
+// GetTaskByID retrieves a task by ID
+func (s *TaskService) GetTaskByID(id int) (*models.Task, error) {
+    if id <= 0 {
+        return nil, errors.New("invalid task ID")
+    }
+
+    return s.taskRepo.GetTaskByID(id)
 }
 
-func (s *TaskService) GetTaskByID(ctx context.Context, id int) (*models.Task, error) {
-	task, err := s.taskRepo.GetByID(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	if task == nil {
-		return nil, fmt.Errorf("task with ID %d not found", id)
-	}
-	return task, nil
+// GetTasksByDealID retrieves all tasks for a specific deal
+func (s *TaskService) GetTasksByDealID(dealID int) ([]models.Task, error) {
+    if dealID <= 0 {
+        return nil, errors.New("invalid deal ID")
+    }
+
+    return s.taskRepo.GetTasksByDealID(dealID)
 }
 
-func (s *TaskService) UpdateTask(ctx context.Context, id int, t models.Task) error {
-	_, err := s.GetTaskByID(ctx, id)
-	if err != nil {
-		return err
-	}
-	t.ID = id
-	// Add validation...
-	if t.TaskName == "" {
-		return errors.New("task name cannot be empty on update")
-	}
-	err = s.taskRepo.Update(ctx, t)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return fmt.Errorf("task with ID %d not found during update", id)
-		}
-		return err
-	}
-	return nil
+// GetAllTasks retrieves all tasks
+func (s *TaskService) GetAllTasks() ([]models.Task, error) {
+    return s.taskRepo.GetAllTasks()
 }
 
-func (s *TaskService) DeleteTask(ctx context.Context, id int) error {
-	err := s.taskRepo.Delete(ctx, id)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return fmt.Errorf("task with ID %d not found", id)
-		}
-		return err
-	}
-	return nil
+// UpdateTask updates an existing task
+func (s *TaskService) UpdateTask(task *models.Task) error {
+    if task.ID <= 0 {
+        return errors.New("invalid task ID")
+    }
+    if task.TaskName == "" {
+        return errors.New("task name cannot be empty")
+    }
+    if task.AssignedTo == 0 {
+        return errors.New("assigned_to ID is required")
+    }
+
+    existingTask, err := s.taskRepo.GetTaskByID(task.ID)
+    if err != nil {
+        return fmt.Errorf("failed to verify task existence: %w", err)
+    }
+
+    if existingTask.AssignedTo != task.AssignedTo {
+        return errors.New("unauthorized to update this task")
+    }
+
+    return s.taskRepo.UpdateTask(task)
+}
+
+// DeleteTask soft deletes a task
+func (s *TaskService) DeleteTask(id int) error {
+    if id <= 0 {
+        return errors.New("invalid task ID")
+    }
+
+    return s.taskRepo.DeleteTask(id)
+}
+
+// GetTasksForUser retrieves tasks for a specific user
+func (s *TaskService) GetTasksForUser(userID int) ([]models.Task, error) {
+    if userID <= 0 {
+        return nil, errors.New("invalid user ID")
+    }
+
+    return s.taskRepo.GetTasksForUser(userID)
+}
+
+// CreateDealTask creates a new task for a deal (nested route)
+func (s *TaskService) CreateDealTask(task *models.Task) error {
+    if task.TaskName == "" {
+        return errors.New("task name cannot be empty")
+    }
+    if task.AssignedTo == 0 {
+        return errors.New("assigned_to ID is required")
+    }
+    if task.DealID == nil || *task.DealID <= 0 {
+        return errors.New("deal ID is required")
+    }
+    if task.DueDate.IsZero() {
+        return errors.New("due date is required")
+    }
+    if task.Status == "" {
+        task.Status = "Pending"
+    }
+
+    return s.taskRepo.CreateTask(task)
+}
+
+// UpdateDealTask updates a task for a deal
+func (s *TaskService) UpdateDealTask(task *models.Task) error {
+    if task.ID <= 0 {
+        return errors.New("invalid task ID")
+    }
+    if task.TaskName == "" {
+        return errors.New("task name cannot be empty")
+    }
+
+    existingTask, err := s.taskRepo.GetTaskByID(task.ID)
+    if err != nil {
+        return fmt.Errorf("failed to verify task existence: %w", err)
+    }
+
+    if existingTask.DealID == nil || *existingTask.DealID != *task.DealID {
+        return errors.New("task not found for this deal")
+    }
+
+    return s.taskRepo.UpdateTask(task)
+}
+
+// DeleteDealTask deletes a task for a deal
+func (s *TaskService) DeleteDealTask(id int) error {
+    if id <= 0 {
+        return errors.New("invalid task ID")
+    }
+
+    return s.taskRepo.DeleteTask(id)
 }

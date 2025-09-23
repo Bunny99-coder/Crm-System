@@ -17,15 +17,12 @@ func NewPropertyRepo(db *sqlx.DB) *PropertyRepo {
 }
 
 // Create inserts a new property into the database.
-func (r *PropertyRepo) Create(ctx context.Context,p models.Property) (int, error) {
+func (r *PropertyRepo) Create(ctx context.Context, p models.Property) (int, error) {
 	var newID int
 	query := `INSERT INTO properties (name, site_id, property_type_id, unit_no, size_sqft, price, status)
 			  VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING property_id`
 	err := r.db.QueryRowxContext(ctx, query, p.Name, p.SiteID, p.PropertyTypeID, p.UnitNo, p.SizeSqft, p.Price, p.Status).Scan(&newID)
-	if err != nil {
-		return 0, err
-	}
-	return newID, nil
+	return newID, err
 }
 
 // GetAll retrieves all properties from the database.

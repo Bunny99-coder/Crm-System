@@ -1,113 +1,444 @@
-// Replace the contents of internal/api/handlers/task_handler.go
 package handlers
 
 import (
-	"crm-project/internal/models"
-	"crm-project/internal/service"
-	"encoding/json"
-	"log/slog"
-	"net/http"
-	"strconv"
+    "encoding/json"
+    "log/slog"
+    "net/http"
+    "strconv"
+    "time"
 
-	"github.com/go-chi/chi/v5"
+    "crm-project/internal/models"
+    "crm-project/internal/service"
+    "github.com/go-chi/chi/v5"
 )
 
 type TaskHandler struct {
-	service *service.TaskService
-	logger  *slog.Logger
+    taskService *service.TaskService
 }
 
-func NewTaskHandler(s *service.TaskService, logger *slog.Logger) *TaskHandler {
-	return &TaskHandler{service: s, logger: logger}
+func NewTaskHandler(taskService *service.TaskService) *TaskHandler {
+    return &TaskHandler{taskService: taskService}
 }
 
-func (h *TaskHandler) CreateTask(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	var newTask models.Task
-	if err := json.NewDecoder(r.Body).Decode(&newTask); err != nil {
-		h.logger.Warn("invalid create task request body", "error", err)
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
-	newID, err := h.service.CreateTask(ctx, newTask)
-	if err != nil {
-		h.logger.Error("failed to create task", "error", err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	h.logger.Info("task created successfully", "task_id", newID)
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]int{"id": newID})
+// CreateTaskRequest represents the request body for creating a task
+type CreateTaskRequest struct {
+    TaskName        string     `json:"task_name"`
+    TaskDescription *string    `json:"task_description,omitempty"`
+    DueDate         time.Time  `json:"due_date"`
+    Status          string     `json:"status"`
+    LeadID          *int       `json:"lead_id,omitempty"`
+    DealID          *int       `json:"deal_id,omitempty"`
 }
 
+// UpdateTaskRequest represents the request body for updating a task
+type UpdateTaskRequest struct {
+    TaskName        string     `json:"task_name"`
+    TaskDescription *string    `json:"task_description,omitempty"`
+    DueDate         time.Time  `json:"due_date"`
+    Status          string     `json:"status"`
+}
+
+// TaskResponse represents the response structure for tasks
+type TaskResponse struct {
+    ID              int        `json:"id"`
+    TaskName        string     `json:"task_name"`
+    TaskDescription *string    `json:"task_description,omitempty"`
+    DueDate         time.Time  `json:"due_date"`
+    Status          string     `json:"status"`
+    AssignedTo      int        `json:"assigned_to"`
+    LeadID          *int       `json:"lead_id,omitempty"`
+    DealID          *int       `json:"deal_id,omitempty"`
+    CreatedAt       time.Time  `json:"created_at"`
+    UpdatedAt       *time.Time `json:"updated_at,omitempty"`
+}
+
+// Helper function to convert models.Task to TaskResponse
+func convertTaskToResponse(task *models.Task) TaskResponse {
+    response := TaskResponse{
+        ID:              task.ID,
+        TaskName:        task.TaskName,
+        TaskDescription: task.TaskDescription,
+        DueDate:         task.DueDate,
+        Status:          task.Status,
+        AssignedTo:      task.AssignedTo,
+        LeadID:          task.LeadID,
+        DealID:          task.DealID,
+        CreatedAt:       task.CreatedAt,
+        UpdatedAt:       task.UpdatedAt,
+    }
+    return response
+}
+
+// GetAllTasks handles GET /api/v1/tasks
 func (h *TaskHandler) GetAllTasks(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	tasks, err := h.service.GetAllTasks(ctx)
-	if err != nil {
-		h.logger.Error("failed to get all tasks", "error", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		return
-	}
-	h.logger.Debug("retrieved all tasks", "count", len(tasks))
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(tasks)
+    slog.Info("GetAllTasks called", "method", r.Method, "url", r.URL.Path)
+
+    tasks, err := h.taskService.GetAllTasks()
+    if err != nil {
+        slog.Error("Failed to get all tasks", "error", err)
+        respondWithError(w, http.StatusInternalServerError, "Failed to get tasks: "+err.Error())
+        return
+    }
+
+    taskResponses := make([]TaskResponse, len(tasks))
+    for i, task := range tasks {
+        taskResponses[i] = convertTaskToResponse(&task)
+    }
+
+    slog.Info("Successfully retrieved all tasks", "count", len(tasks))
+    respondWithJSON(w, http.StatusOK, taskResponses)
 }
 
+// CreateTask handles POST /api/v1/tasks
+func (h *TaskHandler) CreateTask(w http.ResponseWriter, r *http.Request) {
+    slog.Info("CreateTask called", "method", r.Method, "url", r.URL.Path)
+    userID, err := getUserIDFromContext(r.Context())
+    if err != nil {
+        respondWithError(w, http.StatusUnauthorized, "Authentication required")
+        return
+    }
+
+    var req CreateTaskRequest
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        slog.Error("Failed to decode request body", "error", err)
+        respondWithError(w, http.StatusBadRequest, "Invalid request payload")
+        return
+    }
+    defer r.Body.Close()
+
+    task := &models.Task{
+        TaskName:        req.TaskName,
+        TaskDescription: req.TaskDescription,
+        DueDate:         req.DueDate,
+        Status:          req.Status,
+        AssignedTo:      userID,
+        LeadID:          req.LeadID,
+        DealID:          req.DealID,
+        CreatedAt:       time.Now(),
+    }
+
+    if err := h.taskService.CreateTask(task); err != nil {
+        slog.Error("Failed to create task", "error", err)
+        respondWithError(w, http.StatusInternalServerError, "Failed to create task: "+err.Error())
+        return
+    }
+
+    slog.Info("Successfully created task", "taskID", task.ID)
+    respondWithJSON(w, http.StatusCreated, convertTaskToResponse(task))
+}
+
+// GetTaskByID handles GET /api/v1/tasks/{id}
 func (h *TaskHandler) GetTaskByID(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	id, err := strconv.Atoi(chi.URLParam(r, "id"))
-	if err != nil {
-		http.Error(w, "Invalid task ID", http.StatusBadRequest)
-		return
-	}
-	task, err := h.service.GetTaskByID(ctx, id)
-	if err != nil {
-		h.logger.Warn("task not found", "task_id", id, "error", err)
-		http.Error(w, err.Error(), http.StatusNotFound)
-		return
-	}
-	h.logger.Debug("retrieved task by id", "task_id", id)
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(task)
+    slog.Info("GetTaskByID called", "method", r.Method, "url", r.URL.Path)
+    taskID, err := strconv.Atoi(chi.URLParam(r, "id"))
+    if err != nil {
+        slog.Error("Invalid task ID", "error", err)
+        respondWithError(w, http.StatusBadRequest, "Invalid task ID")
+        return
+    }
+
+    task, err := h.taskService.GetTaskByID(taskID)
+    if err != nil {
+        slog.Error("Failed to get task", "taskID", taskID, "error", err)
+        respondWithError(w, http.StatusNotFound, "Task not found: "+err.Error())
+        return
+    }
+
+    slog.Info("Successfully retrieved task", "taskID", taskID)
+    respondWithJSON(w, http.StatusOK, convertTaskToResponse(task))
 }
 
+// UpdateTask handles PUT /api/v1/tasks/{id}
 func (h *TaskHandler) UpdateTask(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	id, err := strconv.Atoi(chi.URLParam(r, "id"))
-	if err != nil {
-		http.Error(w, "Invalid task ID", http.StatusBadRequest)
-		return
-	}
-	var taskToUpdate models.Task
-	if err := json.NewDecoder(r.Body).Decode(&taskToUpdate); err != nil {
-		h.logger.Warn("invalid update task request body", "error", err)
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
-	err = h.service.UpdateTask(ctx, id, taskToUpdate)
-	if err != nil {
-		h.logger.Error("failed to update task", "task_id", id, "error", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	h.logger.Info("task updated successfully", "task_id", id)
-	w.WriteHeader(http.StatusNoContent)
+    slog.Info("UpdateTask called", "method", r.Method, "url", r.URL.Path)
+    userID, err := getUserIDFromContext(r.Context())
+    if err != nil {
+        respondWithError(w, http.StatusUnauthorized, "Authentication required")
+        return
+    }
+
+    taskID, err := strconv.Atoi(chi.URLParam(r, "id"))
+    if err != nil {
+        slog.Error("Invalid task ID", "error", err)
+        respondWithError(w, http.StatusBadRequest, "Invalid task ID")
+        return
+    }
+
+    var req UpdateTaskRequest
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        slog.Error("Failed to decode request body", "error", err)
+        respondWithError(w, http.StatusBadRequest, "Invalid request payload")
+        return
+    }
+    defer r.Body.Close()
+
+    task := &models.Task{
+        ID:              taskID,
+        TaskName:        req.TaskName,
+        TaskDescription: req.TaskDescription,
+        DueDate:         req.DueDate,
+        Status:          req.Status,
+        AssignedTo:      userID,
+    }
+
+    if err := h.taskService.UpdateTask(task); err != nil {
+        slog.Error("Failed to update task", "taskID", taskID, "error", err)
+        respondWithError(w, http.StatusInternalServerError, "Failed to update task: "+err.Error())
+        return
+    }
+
+    updatedTask, err := h.taskService.GetTaskByID(taskID)
+    if err != nil {
+        slog.Error("Failed to fetch updated task", "taskID", taskID, "error", err)
+        respondWithError(w, http.StatusInternalServerError, "Failed to get updated task: "+err.Error())
+        return
+    }
+
+    slog.Info("Successfully updated task", "taskID", taskID)
+    respondWithJSON(w, http.StatusOK, convertTaskToResponse(updatedTask))
 }
 
+// DeleteTask handles DELETE /api/v1/tasks/{id}
 func (h *TaskHandler) DeleteTask(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	id, err := strconv.Atoi(chi.URLParam(r, "id"))
-	if err != nil {
-		http.Error(w, "Invalid task ID", http.StatusBadRequest)
-		return
-	}
-	err = h.service.DeleteTask(ctx, id)
-	if err != nil {
-		h.logger.Error("failed to delete task", "task_id", id, "error", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	h.logger.Info("task deleted successfully", "task_id", id)
-	w.WriteHeader(http.StatusNoContent)
+    slog.Info("DeleteTask called", "method", r.Method, "url", r.URL.Path)
+    userID, err := getUserIDFromContext(r.Context())
+    if err != nil {
+        respondWithError(w, http.StatusUnauthorized, "Authentication required")
+        return
+    }
+
+    taskID, err := strconv.Atoi(chi.URLParam(r, "id"))
+    if err != nil {
+        slog.Error("Invalid task ID", "error", err)
+        respondWithError(w, http.StatusBadRequest, "Invalid task ID")
+        return
+    }
+
+    existingTask, err := h.taskService.GetTaskByID(taskID)
+    if err != nil {
+        slog.Error("Task not found", "taskID", taskID, "error", err)
+        respondWithError(w, http.StatusNotFound, "Task not found: "+err.Error())
+        return
+    }
+
+    if existingTask.AssignedTo != userID {
+        slog.Warn("Unauthorized to delete task", "userID", userID, "taskAssignedTo", existingTask.AssignedTo)
+        respondWithError(w, http.StatusForbidden, "You can only delete your own tasks")
+        return
+    }
+
+    if err := h.taskService.DeleteTask(taskID); err != nil {
+        slog.Error("Failed to delete task", "taskID", taskID, "error", err)
+        respondWithError(w, http.StatusInternalServerError, "Failed to delete task: "+err.Error())
+        return
+    }
+
+    slog.Info("Successfully deleted task", "taskID", taskID)
+    respondWithJSON(w, http.StatusOK, map[string]string{"message": "Task deleted successfully"})
+}
+
+// GetTasksForUser handles GET /api/v1/users/{userId}/tasks
+func (h *TaskHandler) GetTasksForUser(w http.ResponseWriter, r *http.Request) {
+    slog.Info("GetTasksForUser called", "method", r.Method, "url", r.URL.Path)
+    userID, err := strconv.Atoi(chi.URLParam(r, "userId"))
+    if err != nil {
+        slog.Error("Invalid user ID", "error", err)
+        respondWithError(w, http.StatusBadRequest, "Invalid user ID")
+        return
+    }
+
+    tasks, err := h.taskService.GetTasksForUser(userID)
+    if err != nil {
+        slog.Error("Failed to get user tasks", "userID", userID, "error", err)
+        respondWithError(w, http.StatusInternalServerError, "Failed to get user tasks: "+err.Error())
+        return
+    }
+
+    taskResponses := make([]TaskResponse, len(tasks))
+    for i, task := range tasks {
+        taskResponses[i] = convertTaskToResponse(&task)
+    }
+
+    slog.Info("Successfully retrieved user tasks", "userID", userID, "count", len(tasks))
+    respondWithJSON(w, http.StatusOK, taskResponses)
+}
+
+// GetDealTasks handles GET /api/v1/deals/{dealId}/tasks
+func (h *TaskHandler) GetDealTasks(w http.ResponseWriter, r *http.Request) {
+    slog.Info("GetDealTasks called", "method", r.Method, "url", r.URL.Path)
+    dealID, err := strconv.Atoi(chi.URLParam(r, "dealId"))
+    if err != nil {
+        slog.Error("Invalid deal ID", "error", err)
+        respondWithError(w, http.StatusBadRequest, "Invalid deal ID")
+        return
+    }
+
+    tasks, err := h.taskService.GetTasksByDealID(dealID)
+    if err != nil {
+        slog.Error("Failed to get deal tasks", "dealID", dealID, "error", err)
+        respondWithError(w, http.StatusInternalServerError, "Failed to get deal tasks: "+err.Error())
+        return
+    }
+
+    taskResponses := make([]TaskResponse, len(tasks))
+    for i, task := range tasks {
+        taskResponses[i] = convertTaskToResponse(&task)
+    }
+
+    slog.Info("Successfully retrieved deal tasks", "dealID", dealID, "count", len(tasks))
+    respondWithJSON(w, http.StatusOK, taskResponses)
+}
+
+// CreateDealTask handles POST /api/v1/deals/{dealId}/tasks
+func (h *TaskHandler) CreateDealTask(w http.ResponseWriter, r *http.Request) {
+    slog.Info("CreateDealTask called", "method", r.Method, "url", r.URL.Path)
+    userID, err := getUserIDFromContext(r.Context())
+    if err != nil {
+        respondWithError(w, http.StatusUnauthorized, "Authentication required")
+        return
+    }
+
+    dealID, err := strconv.Atoi(chi.URLParam(r, "dealId"))
+    if err != nil {
+        slog.Error("Invalid deal ID", "error", err)
+        respondWithError(w, http.StatusBadRequest, "Invalid deal ID")
+        return
+    }
+
+    var req CreateTaskRequest
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        slog.Error("Failed to decode request body", "error", err)
+        respondWithError(w, http.StatusBadRequest, "Invalid request payload")
+        return
+    }
+    defer r.Body.Close()
+
+    task := &models.Task{
+        TaskName:        req.TaskName,
+        TaskDescription: req.TaskDescription,
+        DueDate:         req.DueDate,
+        Status:          req.Status,
+        AssignedTo:      userID,
+        DealID:          &dealID,
+        CreatedAt:       time.Now(),
+    }
+
+    if err := h.taskService.CreateDealTask(task); err != nil {
+        slog.Error("Failed to create deal task", "error", err)
+        respondWithError(w, http.StatusInternalServerError, "Failed to create deal task: "+err.Error())
+        return
+    }
+
+    slog.Info("Successfully created deal task", "taskID", task.ID, "dealID", dealID)
+    respondWithJSON(w, http.StatusCreated, convertTaskToResponse(task))
+}
+
+// UpdateDealTask handles PUT /api/v1/deals/{dealId}/tasks/{taskId}
+func (h *TaskHandler) UpdateDealTask(w http.ResponseWriter, r *http.Request) {
+    slog.Info("UpdateDealTask called", "method", r.Method, "url", r.URL.Path)
+    userID, err := getUserIDFromContext(r.Context())
+    if err != nil {
+        respondWithError(w, http.StatusUnauthorized, "Authentication required")
+        return
+    }
+
+    dealID, err := strconv.Atoi(chi.URLParam(r, "dealId"))
+    if err != nil {
+        slog.Error("Invalid deal ID", "error", err)
+        respondWithError(w, http.StatusBadRequest, "Invalid deal ID")
+        return
+    }
+
+    taskID, err := strconv.Atoi(chi.URLParam(r, "taskId"))
+    if err != nil {
+        slog.Error("Invalid task ID", "error", err)
+        respondWithError(w, http.StatusBadRequest, "Invalid task ID")
+        return
+    }
+
+    var req UpdateTaskRequest
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        slog.Error("Failed to decode request body", "error", err)
+        respondWithError(w, http.StatusBadRequest, "Invalid request payload")
+        return
+    }
+    defer r.Body.Close()
+
+    task := &models.Task{
+        ID:              taskID,
+        TaskName:        req.TaskName,
+        TaskDescription: req.TaskDescription,
+        DueDate:         req.DueDate,
+        Status:          req.Status,
+        AssignedTo:      userID,
+        DealID:          &dealID,
+    }
+
+    if err := h.taskService.UpdateDealTask(task); err != nil {
+        slog.Error("Failed to update deal task", "taskID", taskID, "error", err)
+        respondWithError(w, http.StatusInternalServerError, "Failed to update deal task: "+err.Error())
+        return
+    }
+
+    updatedTask, err := h.taskService.GetTaskByID(taskID)
+    if err != nil {
+        slog.Error("Failed to fetch updated task", "taskID", taskID, "error", err)
+        respondWithError(w, http.StatusInternalServerError, "Failed to get updated task: "+err.Error())
+        return
+    }
+
+    slog.Info("Successfully updated deal task", "taskID", taskID, "dealID", dealID)
+    respondWithJSON(w, http.StatusOK, convertTaskToResponse(updatedTask))
+}
+
+// DeleteDealTask handles DELETE /api/v1/deals/{dealId}/tasks/{taskId}
+func (h *TaskHandler) DeleteDealTask(w http.ResponseWriter, r *http.Request) {
+    slog.Info("DeleteDealTask called", "method", r.Method, "url", r.URL.Path)
+    userID, err := getUserIDFromContext(r.Context())
+    if err != nil {
+        respondWithError(w, http.StatusUnauthorized, "Authentication required")
+        return
+    }
+
+    dealID, err := strconv.Atoi(chi.URLParam(r, "dealId"))
+    if err != nil {
+        slog.Error("Invalid deal ID", "error", err)
+        respondWithError(w, http.StatusBadRequest, "Invalid deal ID")
+        return
+    }
+
+    taskID, err := strconv.Atoi(chi.URLParam(r, "taskId"))
+    if err != nil {
+        slog.Error("Invalid task ID", "error", err)
+        respondWithError(w, http.StatusBadRequest, "Invalid task ID")
+        return
+    }
+
+    existingTask, err := h.taskService.GetTaskByID(taskID)
+    if err != nil {
+        slog.Error("Task not found", "taskID", taskID, "error", err)
+        respondWithError(w, http.StatusNotFound, "Task not found: "+err.Error())
+        return
+    }
+
+    if existingTask.DealID == nil || *existingTask.DealID != dealID {
+        slog.Warn("Task does not belong to deal", "taskID", taskID, "dealID", dealID)
+        respondWithError(w, http.StatusNotFound, "Task not found for this deal")
+        return
+    }
+
+    if existingTask.AssignedTo != userID {
+        slog.Warn("Unauthorized to delete task", "userID", userID, "taskAssignedTo", existingTask.AssignedTo)
+        respondWithError(w, http.StatusForbidden, "You can only delete your own tasks")
+        return
+    }
+
+    if err := h.taskService.DeleteDealTask(taskID); err != nil {
+        slog.Error("Failed to delete deal task", "taskID", taskID, "error", err)
+        respondWithError(w, http.StatusInternalServerError, "Failed to delete deal task: "+err.Error())
+        return
+    }
+
+    slog.Info("Successfully deleted deal task", "taskID", taskID, "dealID", dealID)
+    respondWithJSON(w, http.StatusOK, map[string]string{"message": "Deal task deleted successfully"})
 }

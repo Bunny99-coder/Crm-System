@@ -1,0 +1,755 @@
+# PASTE THIS BLOCK FIRST
+openapi: 3.0.3
+info:
+  title: Real Estate CRM API
+  description: A comprehensive API for managing contacts, leads, deals, properties, and more for a real estate business.
+  version: "1.0.0"
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local Development Server
+
+
+
+
+
+# PASTE THIS BLOCK AFTER THE SERVERS SECTION
+components:
+  # SCHEMAS: These are the blueprints for our JSON data.
+  schemas:
+    # --- CORE SCHEMAS ---
+    Contact:
+      type: object
+      properties:
+        id: { type: integer, readOnly: true }
+        first_name: { type: string, example: "John" }
+        last_name: { type: string, example: "Doe" }
+        email: { type: string, format: email }
+        primary_phone: { type: string }
+    
+    NewContact:
+      type: object
+      properties:
+        first_name: { type: string, example: "Jane" }
+        last_name: { type: string, example: "Smith" }
+        email: { type: string, format: email }
+        primary_phone: { type: string }
+      required: [first_name, primary_phone]
+    
+    User:
+      type: object
+      properties:
+        id: { type: integer, readOnly: true }
+        username: { type: string }
+        email: { type: string, format: email }
+        role_id: { type: integer }
+        
+    NewUser:
+      type: object
+      properties:
+        username: { type: string, example: "new_agent" }
+        password: { type: string, format: password, example: "strongpassword123" }
+        email: { type: string, format: email }
+        role_id: { type: integer, example: 1 }
+      required: [username, password, email, role_id]
+      
+    Property:
+      type: object
+      properties:
+        id: { type: integer, readOnly: true }
+        name: { type: string }
+        site_id: { type: integer }
+        property_type_id: { type: integer }
+        unit_no: { type: string }
+        price: { type: number, format: double }
+        status: { type: string, enum: [Available, Pending, Sold] }
+
+    Lead:
+      type: object
+      properties:
+        id: { type: integer, readOnly: true }
+        contact_id: { type: integer }
+        property_id: { type: integer }
+        source_id: { type: integer }
+        status_id: { type: integer }
+        assigned_to: { type: integer }
+        notes: { type: string }
+        
+    Deal:
+      type: object
+      properties:
+        id: { type: integer, readOnly: true }
+        lead_id: { type: integer }
+        property_id: { type: integer }
+        stage_id: { type: integer }
+        deal_status: { type: string, enum: [Pending, Closed-Won, Closed-Lost] }
+        deal_amount: { type: number, format: double }
+
+    # --- ACTIVITY SCHEMAS ---
+    Task:
+      type: object
+      properties:
+        id: { type: integer, readOnly: true }
+        task_name: { type: string }
+        task_description: { type: string }
+        due_date: { type: string, format: date-time }
+        status: { type: string, enum: [Pending, Completed] }
+        assigned_to: { type: integer }
+
+    Note:
+      type: object
+      properties:
+        id: { type: integer, readOnly: true }
+        user_id: { type: integer }
+        note_date: { type: string, format: date-time }
+        note_text: { type: string }
+        
+    Event:
+      type: object
+      properties:
+        id: { type: integer, readOnly: true }
+        event_name: { type: string }
+        start_time: { type: string, format: date-time }
+        end_time: { type: string, format: date-time }
+        location: { type: string }
+        organizer_id: { type: integer }
+        
+    CommLog:
+      type: object
+      properties:
+        id: { type: integer, readOnly: true }
+        contact_id: { type: integer }
+        user_id: { type: integer }
+        interaction_date: { type: string, format: date-time }
+        interaction_type: { type: string, enum: [Call, Email, Meeting] }
+        notes: { type: string }
+
+
+    # Add this new section inside components.schemas
+
+    # --- REPORT SCHEMAS ---
+    EmployeeLeadReportRow:
+      type: object
+      properties:
+        employee_id: { type: integer }
+        employee_name: { type: string }
+        counts:
+          type: object
+          properties:
+            new: { type: integer }
+            contacted: { type: integer }
+            qualified: { type: integer }
+            converted: { type: integer }
+            lost: { type: integer }
+            
+    EmployeeLeadReport:
+      type: object
+      properties:
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/EmployeeLeadReportRow'
+        total:
+          type: object
+          properties:
+            new: { type: integer }
+            contacted: { type: integer }
+            qualified: { type: integer }
+            converted: { type: integer }
+            lost: { type: integer }
+
+    SourceLeadReportRow:
+      type: object
+      properties:
+        lead_date: { type: string, format: date-time }
+        contact_name: { type: string }
+        contact_phone: { type: string }
+        contact_email: { type: string, format: email }
+        lead_source: { type: string }
+        assigned_employee: { type: string }
+        lead_status: { type: string }
+        
+    EmployeeSalesReportRow:
+      type: object
+      properties:
+        employee_name: { type: string }
+        number_of_sales: { type: integer }
+        total_sales_amount: { type: number, format: double }
+        
+    SourceSalesReportRow:
+      type: object
+      properties:
+        source_name: { type: string }
+        number_of_sales: { type: integer }
+        total_sales_amount: { type: number, format: double }
+
+
+    # --- GENERIC ERROR SCHEMA ---
+    Error:
+      type: object
+      properties:
+        message: { type: string }
+
+  # RESPONSES: Reusable HTTP responses.
+  responses:
+    NotFound:
+      description: The specified resource was not found.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    BadRequest:
+      description: The request was invalid (e.g., validation error).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Unauthorized:
+      description: Authentication failed; token is missing or invalid.
+    Forbidden:
+      description: The user does not have permission for this action.
+
+  # SECURITY SCHEMES: How we authenticate.
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+
+
+
+# PASTE THIS BLOCK AFTER THE COMPONENTS SECTION
+security:
+  - BearerAuth: []
+
+
+
+
+
+
+
+# Replace your entire `paths:` section with this complete version.
+
+paths:
+  # ===================================================================
+  # AUTHENTICATION
+  # ===================================================================
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: User Login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties: { username: { type: string }, password: { type: string, format: password } }
+      responses:
+        '200':
+          description: Successful login, returns JWT token.
+          content: { application/json: { schema: { type: object, properties: { token: { type: string } } } } }
+        '401': { description: "Invalid credentials" }
+
+  # ===================================================================
+  # USERS
+  # ===================================================================
+  /users:
+    get:
+      tags: [Users]
+      summary: Get All Users
+      responses:
+        '200': { description: "A list of all users.", content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/User' } } } } }
+    post:
+      tags: [Users]
+      summary: Create New User (Sign Up)
+      security: []
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/NewUser' } } }
+      responses:
+        '201': { description: "User created" }
+        '400': { $ref: '#/components/responses/BadRequest' }
+  
+  /users/{userId}:
+    get:
+      tags: [Users]
+      summary: Get User by ID
+      parameters:
+        - { name: userId, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: "A single user.", content: { application/json: { schema: { $ref: '#/components/schemas/User' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ===================================================================
+  # CONTACTS
+  # ===================================================================
+  /contacts:
+    get:
+      tags: [Contacts]
+      summary: Get All Contacts
+      responses:
+        '200': { description: "A list of contacts.", content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Contact' } } } } }
+    post:
+      tags: [Contacts]
+      summary: Create New Contact
+      description: Reception role required.
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/NewContact' } } }
+      responses:
+        '201': { description: "Contact created" }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /contacts/{contactId}:
+    get:
+      tags: [Contacts]
+      summary: Get Contact by ID
+      parameters:
+        - { name: contactId, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: "A single contact.", content: { application/json: { schema: { $ref: '#/components/schemas/Contact' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Contacts]
+      summary: Update a Contact
+      description: Reception role required.
+      parameters:
+        - { name: contactId, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/NewContact' } } }
+      responses:
+        '204': { description: "Contact updated" }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    delete:
+      tags: [Contacts]
+      summary: Delete a Contact
+      description: Reception role required.
+      parameters:
+        - { name: contactId, in: path, required: true, schema: { type: integer } }
+      responses:
+        '204': { description: "Contact deleted" }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  # ===================================================================
+  # PROPERTIES
+  # ===================================================================
+  /properties:
+    get:
+      tags: [Properties]
+      summary: Get All Properties
+      responses:
+        '200': { description: "A list of properties.", content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Property' } } } } }
+    post:
+      tags: [Properties]
+      summary: Create New Property
+      description: Reception role required.
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/Property' } } }
+      responses:
+        '201': { description: "Property created" }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /properties/{propertyId}:
+    get:
+      tags: [Properties]
+      summary: Get Property by ID
+      parameters:
+        - { name: propertyId, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: "A single property.", content: { application/json: { schema: { $ref: '#/components/schemas/Property' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Properties]
+      summary: Update a Property
+      description: Reception role required.
+      parameters:
+        - { name: propertyId, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/Property' } } }
+      responses:
+        '204': { description: "Property updated" }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    delete:
+      tags: [Properties]
+      summary: Delete a Property
+      description: Reception role required.
+      parameters:
+        - { name: propertyId, in: path, required: true, schema: { type: integer } }
+      responses:
+        '204': { description: "Property deleted" }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  # ===================================================================
+  # LEADS
+  # ===================================================================
+  /leads:
+    get:
+      tags: [Leads]
+      summary: Get All Leads
+      responses:
+        '200': { description: "A list of leads.", content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Lead' } } } } }
+    post:
+      tags: [Leads]
+      summary: Create New Lead
+      description: Reception role required.
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/Lead' } } }
+      responses:
+        '201': { description: "Lead created" }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /leads/{id}:
+    get:
+      tags: [Leads]
+      summary: Get Lead by ID
+      description: Reception role required.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: "A single lead.", content: { application/json: { schema: { $ref: '#/components/schemas/Lead' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    put:
+      tags: [Leads]
+      summary: Update a Lead
+      description: Reception role required.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/Lead' } } }
+      responses:
+        '204': { description: "Lead updated" }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    delete:
+      tags: [Leads]
+      summary: Delete a Lead
+      description: Reception role required.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '204': { description: "Lead deleted" }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  # ===================================================================
+  # DEALS
+  # ===================================================================
+  /deals:
+    get:
+      tags: [Deals]
+      summary: Get All Deals
+      responses:
+        '200': { description: "A list of deals.", content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Deal' } } } } }
+    post:
+      tags: [Deals]
+      summary: Create a New Deal
+      description: Sales Agent role required.
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/Deal' } } }
+      responses:
+        '201': { description: "Deal created" }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /deals/{id}:
+    get:
+      tags: [Deals]
+      summary: Get Deal by ID
+      description: Sales Agent role required.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: "A single deal.", content: { application/json: { schema: { $ref: '#/components/schemas/Deal' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    put:
+      tags: [Deals]
+      summary: Update a Deal
+      description: Sales Agent role required.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/Deal' } } }
+      responses:
+        '204': { description: "Deal updated" }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    delete:
+      tags: [Deals]
+      summary: Delete a Deal
+      description: Sales Agent role required.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '204': { description: "Deal deleted" }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  
+  # ===================================================================
+  # TASKS
+  # ===================================================================
+  /tasks:
+    get:
+      tags: [Tasks]
+      summary: Get All Tasks
+      responses:
+        '200': { description: "A list of tasks.", content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Task' } } } } }
+    post:
+      tags: [Tasks]
+      summary: Create New Task
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/Task' } } }
+      responses:
+        '201': { description: "Task created" }
+
+  /tasks/{id}:
+    get:
+      tags: [Tasks]
+      summary: Get Task by ID
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: "A single task.", content: { application/json: { schema: { $ref: '#/components/schemas/Task' } } } }
+    put:
+      tags: [Tasks]
+      summary: Update a Task
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/Task' } } }
+      responses:
+        '204': { description: "Task updated" }
+    delete:
+      tags: [Tasks]
+      summary: Delete a Task
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '204': { description: "Task deleted" }
+
+  # ===================================================================
+  # NOTES
+  # ===================================================================
+  /notes:
+    get:
+      tags: [Notes]
+      summary: Get All Notes
+      responses:
+        '200': { description: "A list of notes.", content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Note' } } } } }
+    post:
+      tags: [Notes]
+      summary: Create New Note
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/Note' } } }
+      responses:
+        '201': { description: "Note created" }
+
+  /notes/{noteId}:
+    get:
+      tags: [Notes]
+      summary: Get Note by ID
+      parameters:
+        - { name: noteId, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: "A single note.", content: { application/json: { schema: { $ref: '#/components/schemas/Note' } } } }
+    put:
+      tags: [Notes]
+      summary: Update a Note
+      parameters:
+        - { name: noteId, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/Note' } } }
+      responses:
+        '204': { description: "Note updated" }
+    delete:
+      tags: [Notes]
+      summary: Delete a Note
+      parameters:
+        - { name: noteId, in: path, required: true, schema: { type: integer } }
+      responses:
+        '204': { description: "Note deleted" }
+
+  # ===================================================================
+  # EVENTS
+  # ===================================================================
+  /events:
+    get:
+      tags: [Events]
+      summary: Get All Events
+      responses:
+        '200': { description: "A list of events.", content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Event' } } } } }
+    post:
+      tags: [Events]
+      summary: Create New Event
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/Event' } } }
+      responses:
+        '201': { description: "Event created" }
+
+  /events/{eventId}:
+    get:
+      tags: [Events]
+      summary: Get Event by ID
+      parameters:
+        - { name: eventId, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: "A single event.", content: { application/json: { schema: { $ref: '#/components/schemas/Event' } } } }
+    put:
+      tags: [Events]
+      summary: Update an Event
+      parameters:
+        - { name: eventId, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/Event' } } }
+      responses:
+        '204': { description: "Event updated" }
+    delete:
+      tags: [Events]
+      summary: Delete an Event
+      parameters:
+        - { name: eventId, in: path, required: true, schema: { type: integer } }
+      responses:
+        '204': { description: "Event deleted" }
+  
+  # ===================================================================
+  # COMMUNICATION LOGS
+  # ===================================================================
+  /comm-logs:
+    post:
+      tags: [CommLogs]
+      summary: Create New Log Entry
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/CommLog' } } }
+      responses:
+        '201': { description: "Log created" }
+
+  /comm-logs/{logId}:
+    get:
+      tags: [CommLogs]
+      summary: Get Log by ID
+      parameters:
+        - { name: logId, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: "A single log entry.", content: { application/json: { schema: { $ref: '#/components/schemas/CommLog' } } } }
+    put:
+      tags: [CommLogs]
+      summary: Update a Log Entry
+      parameters:
+        - { name: logId, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/CommLog' } } }
+      responses:
+        '204': { description: "Log updated" }
+    delete:
+      tags: [CommLogs]
+      summary: Delete a Log Entry
+      parameters:
+        - { name: logId, in: path, required: true, schema: { type: integer } }
+      responses:
+        '204': { description: "Log deleted" }
+
+  # ===================================================================
+  # NESTED ROUTES
+  # ===================================================================
+  /contacts/{contactId}/comm-logs:
+    get:
+      tags: [CommLogs, Contacts]
+      summary: Get All Logs for a Contact
+      parameters:
+        - { name: contactId, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: "A list of logs for the specified contact.", content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/CommLog' } } } } }
+  
+  /users/{userId}/notes:
+    get:
+      tags: [Notes, Users]
+      summary: Get All Notes for a User
+      parameters:
+        - { name: userId, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: "A list of notes for the specified user.", content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Note' } } } } }
+
+  /users/{userId}/events:
+    get:
+      tags: [Events, Users]
+      summary: Get All Events for a User
+      parameters:
+        - { name: userId, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: "A list of events for the specified user.", content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Event' } } } } }
+
+  # ===================================================================
+  # REPORTS
+  # ===================================================================
+  # Update the responses for the report paths
+
+  /reports/employee-leads:
+    get:
+      tags: [Reports]
+      summary: Get Employee-wise Lead Report
+      description: Reception role required.
+      responses:
+        '200': 
+          description: "Successful report generation."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmployeeLeadReport' # <-- Reference the new schema
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /reports/employee-sales:
+    get:
+      tags: [Reports]
+      summary: Get Employee-wise Sales Report
+      description: Reception role required.
+      responses:
+        '200': 
+          description: "Successful report generation."
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EmployeeSalesReportRow' # <-- Reference the new schema
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /reports/source-leads:
+    get:
+      tags: [Reports]
+      summary: Get Source-wise Lead Report
+      description: Reception role required.
+      responses:
+        '200': 
+          description: "Successful report generation."
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SourceLeadReportRow' # <-- Reference the new schema
+        '403': { $ref: '#/components/responses/Forbidden' }
+        
+  /reports/source-sales:
+    get:
+      tags: [Reports]
+      summary: Get Source-wise Sales Report
+      description: Reception role required.
+      responses:
+        '200': 
+          description: "Successful report generation."
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SourceSalesReportRow' # <-- Reference the new schema
+        '403': { $ref: '#/components/responses/Forbidden' }

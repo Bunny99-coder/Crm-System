@@ -16,11 +16,17 @@ import (
 )
 
 // AuthMiddleware creates a middleware that verifies the JWT token.
+// In internal/api/middleware.go
+
 func AuthMiddleware(jwtSecret string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			slog.Debug("AuthMiddleware triggered") // Using Debug level for less noise
 
+			slog.Info("AuthMiddleware called",
+                "method", r.Method,
+                "url", r.URL.Path,
+                "authHeader", r.Header.Get("Authorization"))
+				
 			authHeader := r.Header.Get("Authorization")
 			if authHeader == "" {
 				slog.Warn("authorization header is missing")
@@ -35,20 +41,18 @@ func AuthMiddleware(jwtSecret string) func(http.Handler) http.Handler {
 				return
 			}
 			tokenString := headerParts[1]
-
-			// Use the Claims struct from our DTO package.
 			claims := &dto.Claims{}
 
 			token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
 				if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 					return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 				}
+				// --- THE FIX IS HERE ---
 				// Use the actual secret passed from the config.
-    			return []byte(util.HardcodedJWTSecret), nil
+				return []byte(jwtSecret), nil
 			})
 
 			if err != nil {
-				// Log the specific validation error.
 				if errors.Is(err, jwt.ErrTokenExpired) {
 					slog.Warn("token validation failed: token is expired", "error", err)
 				} else {
@@ -65,11 +69,7 @@ func AuthMiddleware(jwtSecret string) func(http.Handler) http.Handler {
 			}
 			
 			slog.Debug("token is valid", "user_id", claims.UserID, "role_id", claims.RoleID)
-
-			// Add the claims to the context using our new utility function.
 			ctx := util.AddClaimsToContext(r.Context(), claims)
-			
-			// Call the next handler in the chain.
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
@@ -79,6 +79,9 @@ func AuthMiddleware(jwtSecret string) func(http.Handler) http.Handler {
 func TimeoutMiddleware(timeout time.Duration) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			slog.Info("TimeoutMiddleware called",
+                "method", r.Method,
+                "url", r.URL.Path)
 			ctx, cancel := context.WithTimeout(r.Context(), timeout)
 			defer cancel()
 			next.ServeHTTP(w, r.WithContext(ctx))

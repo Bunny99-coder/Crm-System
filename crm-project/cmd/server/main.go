@@ -23,6 +23,7 @@ import (
 func main() {
 	// --- Initialize Logger & Config ---
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	logger.Info("Test log to confirm logging is working")
 	cfg, err := config.Load("config.yml", logger)
 	if err != nil {
 		logger.Error("could not load configuration", "error", err)
@@ -50,10 +51,12 @@ func main() {
 	propertyRepo := postgres.NewPropertyRepo(db)
 	leadRepo := postgres.NewLeadRepo(db)
 	dealRepo := postgres.NewDealRepo(db)
-	taskRepo := postgres.NewTaskRepo(db)
-	commLogRepo := postgres.NewCommLogRepo(db)
-	noteRepo := postgres.NewNoteRepo(db)
-	eventRepo := postgres.NewEventRepo(db)
+taskRepo := postgres.NewTaskRepository(db)	
+	commLogRepo := postgres.NewCommLogRepository(db) // Corrected from NewCommLogRepo
+noteRepo := postgres.NewNoteRepository(db) // <- pass the underlying *sql.DB
+eventRepo := postgres.NewEventRepository(db)
+
+
 
 	// Service Layer
 	authService := service.NewAuthService(userRepo, cfg.Auth.JWTSecret, logger)
@@ -63,12 +66,14 @@ func main() {
 	leadService := service.NewLeadService(leadRepo, contactRepo, userRepo, propertyRepo, logger)
 	dealService := service.NewDealService(dealRepo, leadRepo, propertyRepo, logger)
 	reportService := service.NewReportService(userRepo, leadRepo, dealRepo, logger)
-	taskService := service.NewTaskService(taskRepo, userRepo, logger)
-	commLogService := service.NewCommLogService(commLogRepo, contactRepo, userRepo, logger)
-	noteService := service.NewNoteService(noteRepo, userRepo, logger)
-	eventService := service.NewEventService(eventRepo, userRepo, logger)
-
+taskService := service.NewTaskService(taskRepo)	
+	commLogService := service.NewCommLogService(commLogRepo) // Corrected to match service constructor
+noteService := service.NewNoteService(noteRepo)
+eventService := service.NewEventService(eventRepo)
 	// Handler Layer
+
+
+
 	authHandler := handlers.NewAuthHandler(authService, logger)
 	contactHandler := handlers.NewContactHandler(contactService, logger)
 	userHandler := handlers.NewUserHandler(userService, logger)
@@ -76,12 +81,11 @@ func main() {
 	leadHandler := handlers.NewLeadHandler(leadService, logger)
 	dealHandler := handlers.NewDealHandler(dealService, logger)
 	reportHandler := handlers.NewReportHandler(reportService, logger)
-	taskHandler := handlers.NewTaskHandler(taskService, logger)
-	commLogHandler := handlers.NewCommLogHandler(commLogService, logger)
-	noteHandler := handlers.NewNoteHandler(noteService, logger)
-	eventHandler := handlers.NewEventHandler(eventService, logger)
-
-	// Router
+	
+taskHandler := handlers.NewTaskHandler(taskService)	
+	commLogHandler := handlers.NewCommLogHandler(commLogService) // Corrected to match handler constructor
+noteHandler := handlers.NewNoteHandler(noteService)
+eventHandler := handlers.NewEventHandler(eventService)	// Router
 	router := api.NewRouter(
 		cfg.Auth.JWTSecret,
 		authHandler,

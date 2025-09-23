@@ -23,10 +23,20 @@ func NewUserService(repo *postgres.UserRepo, logger *slog.Logger) *UserService {
 	return &UserService{repo: repo, logger: logger}
 }
 
+
+
+
 func (s *UserService) CreateUser(ctx context.Context, req dto.CreateUserRequest) (int, error) {
 	if err := util.ValidateStruct(req); err != nil {
 		return 0, err
 	}
+
+	// --- NEW SECURITY RULE ---
+	// Ignore the role_id from the request. Public sign-up ALWAYS creates a Sales Agent.
+	// Only an admin should be able to create other roles.
+	const publicSignUpRoleID = dto.RoleSalesAgent // Always role 1
+	s.logger.Info("public user sign-up, forcing role", "role_id", publicSignUpRoleID)
+	// --- END NEW SECURITY RULE ---
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
@@ -38,11 +48,13 @@ func (s *UserService) CreateUser(ctx context.Context, req dto.CreateUserRequest)
 		Username:     req.Username,
 		PasswordHash: string(hashedPassword),
 		Email:        req.Email,
-		RoleID:       req.RoleID,
+		RoleID:       publicSignUpRoleID, // Use our enforced role ID
 	}
 
 	return s.repo.Create(ctx, user)
 }
+
+
 
 func (s *UserService) GetAllUsers(ctx context.Context) ([]models.User, error) {
 	return s.repo.GetAll(ctx)

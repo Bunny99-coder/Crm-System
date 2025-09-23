@@ -24,6 +24,8 @@ type UpdateUserRequest struct {
 type Claims struct {
 	UserID int `json:"user_id"`
 	RoleID int `json:"role_id"`
+	Username string `json:"username"` 
+
 	jwt.RegisteredClaims
 }
 

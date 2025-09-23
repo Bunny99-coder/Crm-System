@@ -47,3 +47,9 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(LoginResponse{Token: token})
 }
+
+func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
+    // If using JWT: frontend just deletes token, backend can respond OK
+    w.WriteHeader(http.StatusOK)
+    w.Write([]byte(`{"message":"Logged out successfully"}`))
+}
