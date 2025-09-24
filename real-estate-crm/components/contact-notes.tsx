@@ -4,17 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-
-interface Note {
-  id: number
-  user_id: number
-  contact_id?: number
-  lead_id?: number
-  deal_id?: number
-  content: string
-  created_at: string
-  updated_at: string
-}
+import { api, type Note } from "@/lib/api"
 
 interface ContactNotesProps {
   contactId: number
@@ -32,9 +22,7 @@ export default function ContactNotes({ contactId }: ContactNotesProps) {
   useEffect(() => {
     async function fetchNotes() {
       try {
-        const res = await fetch(`/api/v1/contacts/${contactId}/notes`)
-        if (!res.ok) throw new Error("Failed to fetch notes")
-        const data: Note[] = await res.json()
+        const data = await api.getContactNotes(contactId)
         setNotes(data ?? [])
       } catch (err: any) {
         setError(err.message || "Something went wrong")
@@ -50,18 +38,7 @@ export default function ContactNotes({ contactId }: ContactNotesProps) {
   async function handleCreateNote() {
     if (!newNoteContent.trim()) return
     try {
-      const res = await fetch(`/api/v1/contacts/${contactId}/notes`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: newNoteContent }),
-      })
-      
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}))
-        throw new Error(errorData.error || "Failed to create note")
-      }
-      
-      const createdNote = await res.json()
+      const createdNote = await api.createContactNote(contactId, { content: newNoteContent })
       setNotes((prev) => [...prev, createdNote])
       setNewNoteContent("")
     } catch (err: any) {
@@ -72,15 +49,7 @@ export default function ContactNotes({ contactId }: ContactNotesProps) {
   // Delete note
   async function handleDeleteNote(id: number) {
     try {
-      const res = await fetch(`/api/v1/contacts/${contactId}/notes/${id}`, { 
-        method: "DELETE" 
-      })
-      
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}))
-        throw new Error(errorData.error || "Failed to delete note")
-      }
-      
+      await api.deleteContactNote(contactId, id)
       setNotes((prev) => prev.filter((n) => n.id !== id))
     } catch (err: any) {
       setError(err.message)
@@ -101,18 +70,7 @@ export default function ContactNotes({ contactId }: ContactNotesProps) {
   async function handleUpdateNote(id: number) {
     if (!editingContent.trim()) return
     try {
-      const res = await fetch(`/api/v1/contacts/${contactId}/notes/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: editingContent }),
-      })
-      
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}))
-        throw new Error(errorData.error || "Failed to update note")
-      }
-      
-      const updatedNote = await res.json()
+      const updatedNote = await api.updateContactNote(contactId, id, { content: editingContent })
       setNotes((prev) =>
         prev.map((n) => (n.id === id ? updatedNote : n))
       )

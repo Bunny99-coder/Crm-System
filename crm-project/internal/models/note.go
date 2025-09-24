@@ -14,4 +14,5 @@ type Note struct {
 	Content   string     `db:"note_text" json:"content"`   // The actual note text (renamed for frontend consistency)
 	CreatedAt time.Time  `db:"created_at" json:"created_at"`
 	UpdatedAt *time.Time `db:"updated_at" json:"updated_at,omitempty"` // Use pointer for nullable updated_at
+	DeletedAt *time.Time `db:"deleted_at" json:"deleted_at,omitempty"` // New field
 }

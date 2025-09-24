@@ -76,13 +76,13 @@ func NewRouter(
             // --- Contacts ---
             r.Get("/contacts", contactHandler.GetAllContacts)
             r.Post("/contacts", contactHandler.CreateContact)
-            r.Get("/contacts/{contactId}", contactHandler.GetContactByID)
             r.Put("/contacts/{contactId}", contactHandler.UpdateContact)
             r.Delete("/contacts/{contactId}", contactHandler.DeleteContact)
             slog.Info("Contact routes registered")
 
             // --- Contact Nested Resources ---
             r.Route("/contacts/{contactId}", func(r chi.Router) {
+				r.Get("/", contactHandler.GetContactByID) // MOVED HERE
                 slog.Info("Setting up /contacts/{contactId} sub-routes")
 
                 // Notes

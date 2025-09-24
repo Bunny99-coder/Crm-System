@@ -21,13 +21,14 @@ func NewCommLogRepository(db *sqlx.DB) *CommLogRepo {
 // CreateCommLog creates a new communication log
 func (r *CommLogRepo) CreateCommLog(log *models.CommLog) error {
     query := `
-        INSERT INTO communication_logs (contact_id, user_id, lead_id, deal_id, interaction_date, interaction_type, notes, created_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        RETURNING log_id, created_at
+        INSERT INTO communication_logs (contact_id, user_id, lead_id, deal_id, interaction_date, interaction_type, notes, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        RETURNING log_id, created_at, updated_at
     `
 
     currentTime := time.Now()
     var createdAt time.Time
+    var updatedAt time.Time
     err := r.db.QueryRowx(
         query,
         log.ContactID,
@@ -38,40 +39,33 @@ func (r *CommLogRepo) CreateCommLog(log *models.CommLog) error {
         log.InteractionType,
         log.Notes,
         currentTime,
-    ).Scan(&log.ID, &createdAt)
+        currentTime,
+    ).Scan(&log.ID, &createdAt, &updatedAt)
 
     if err != nil {
         return fmt.Errorf("failed to create communication log: %w", err)
     }
 
     log.CreatedAt = &createdAt
+    log.UpdatedAt = &updatedAt
     return nil
 }
 
 // GetCommLogByID retrieves a communication log by ID
 func (r *CommLogRepo) GetCommLogByID(id int) (*models.CommLog, error) {
     query := `
-        SELECT log_id, contact_id, user_id, lead_id, deal_id, interaction_date, interaction_type, notes, created_at, deleted_at
+        SELECT log_id, contact_id, user_id, lead_id, deal_id, interaction_date, interaction_type, notes, created_at, updated_at, deleted_at
         FROM communication_logs
         WHERE log_id = $1 AND deleted_at IS NULL
     `
 
     var log models.CommLog
-    var createdAt sql.NullTime
-    var deletedAt sql.NullTime
     err := r.db.Get(&log, query, id)
     if err != nil {
         if err == sql.ErrNoRows {
             return nil, fmt.Errorf("communication log not found")
         }
         return nil, fmt.Errorf("failed to get communication log: %w", err)
-    }
-
-    if createdAt.Valid {
-        log.CreatedAt = &createdAt.Time
-    }
-    if deletedAt.Valid {
-        log.DeletedAt = &deletedAt.Time
     }
 
     return &log, nil

@@ -94,6 +94,8 @@ func (h *ContactHandler) GetContactByID(w http.ResponseWriter, r *http.Request) 
 	// 1. Get the URL parameter using the CORRECT name "contactId" from our router.
 	idStr := chi.URLParam(r, "contactId")
 
+	h.logger.Info("GetContactByID called with idStr:", "id", idStr) // Added log
+
 	// 2. Safely convert the string to an integer and HANDLE THE ERROR.
 	id, err := strconv.Atoi(idStr)
 	if err != nil {

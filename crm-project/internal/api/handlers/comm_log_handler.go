@@ -22,7 +22,7 @@ func NewCommLogHandler(commLogService *service.CommLogService) *CommLogHandler {
 
 // CreateCommLogRequest represents the request body for creating a communication log
 type CreateCommLogRequest struct {
-    ContactID       int       `json:"contact_id"`
+    ContactID       *int      `json:"contact_id,omitempty"`
     LeadID          *int      `json:"lead_id,omitempty"`
     DealID          *int      `json:"deal_id,omitempty"`
     InteractionDate time.Time `json:"interaction_date"`
@@ -32,7 +32,7 @@ type CreateCommLogRequest struct {
 
 // UpdateCommLogRequest represents the request body for updating a communication log
 type UpdateCommLogRequest struct {
-    ContactID       int       `json:"contact_id"`
+    ContactID       *int      `json:"contact_id,omitempty"`
     InteractionDate time.Time `json:"interaction_date"`
     InteractionType string    `json:"interaction_type"`
     Notes           *string   `json:"notes,omitempty"`
@@ -41,7 +41,7 @@ type UpdateCommLogRequest struct {
 // CommLogResponse represents the response structure for communication logs
 type CommLogResponse struct {
     ID              int        `json:"id"`
-    ContactID       int        `json:"contact_id"`
+    ContactID       *int       `json:"contact_id,omitempty"`
     UserID          int        `json:"user_id"`
     LeadID          *int       `json:"lead_id,omitempty"`
     DealID          *int       `json:"deal_id,omitempty"`
@@ -286,7 +286,7 @@ func (h *CommLogHandler) CreateContactCommLog(w http.ResponseWriter, r *http.Req
     defer r.Body.Close()
 
     log := &models.CommLog{
-        ContactID:       contactID,
+        ContactID:       &contactID,
         UserID:          userID,
         LeadID:          req.LeadID,
         DealID:          req.DealID,
@@ -339,7 +339,7 @@ func (h *CommLogHandler) UpdateContactCommLog(w http.ResponseWriter, r *http.Req
 
     log := &models.CommLog{
         ID:              logID,
-        ContactID:       contactID,
+        ContactID:       &contactID,
         UserID:          userID,
         InteractionDate: req.InteractionDate,
         InteractionType: req.InteractionType,

@@ -6,11 +6,20 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ArrowLeft, User, Mail, Phone, Calendar, Edit } from "lucide-react"
-import { getContact, type Contact } from "@/lib/api"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { ArrowLeft, User, Mail, Phone, Calendar, Edit, Trash2 } from "lucide-react"
+import { api, getContact, type Contact } from "@/lib/api"
 import ContactNotes from "@/components/contact-notes"
 import { ContactCommLogs } from "@/components/contact-comm-logs"
-import { ContactActivity } from "@/components/contact-activity"
 import { PageBreadcrumb } from "@/components/page-breadcrumb"
 
 export default function ContactDetailPage() {
@@ -21,6 +30,59 @@ export default function ContactDetailPage() {
   const [contact, setContact] = useState<Contact | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState("")
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [formData, setFormData] = useState({
+    first_name: "",
+    last_name: "",
+    email: "",
+    primary_phone: "",
+  })
+
+  useEffect(() => {
+    if (contact) {
+      setFormData({
+        first_name: contact.first_name,
+        last_name: contact.last_name,
+        email: contact.email,
+        primary_phone: contact.primary_phone,
+      })
+    }
+  }, [contact])
+
+  const handleEditContact = async () => {
+    if (!contact?.id) return
+
+    try {
+      await api.updateContact(contact.id, formData)
+      setIsEditDialogOpen(false)
+      loadContactDetails() // Refresh contact details
+    } catch (err) {
+      setError("Failed to update contact")
+    }
+  }
+
+  const handleDeleteContact = async () => {
+    if (!contact?.id) return
+
+    try {
+      await api.deleteContact(contact.id)
+      router.push("/contacts") // Redirect to contacts list
+    } catch (err) {
+      setError("Failed to delete contact")
+    }
+  }
+
+  const openEditDialog = () => {
+    if (!contact) return
+    setFormData({
+      first_name: contact.first_name,
+      last_name: contact.last_name,
+      email: contact.email,
+      primary_phone: contact.primary_phone,
+    })
+    setIsEditDialogOpen(true)
+  }
 
   useEffect(() => {
     loadContactDetails()
@@ -86,13 +148,18 @@ export default function ContactDetailPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={openEditDialog}>
             <Edit className="mr-2 h-4 w-4" />
             Edit Contact
           </Button>
-          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-            Active
-          </Badge>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => setIsDeleteDialogOpen(true)}
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            Delete Contact
+          </Button>
         </div>
       </div>
 
@@ -146,7 +213,6 @@ export default function ContactDetailPage() {
         <TabsList>
           <TabsTrigger value="notes">Notes</TabsTrigger>
           <TabsTrigger value="communications">Communications</TabsTrigger>
-          <TabsTrigger value="activity">Activity</TabsTrigger>
         </TabsList>
 
         <TabsContent value="notes">
@@ -156,11 +222,93 @@ export default function ContactDetailPage() {
         <TabsContent value="communications">
           <ContactCommLogs contactId={contactId} />
         </TabsContent>
-
-        <TabsContent value="activity">
-          <ContactActivity contactId={contactId} />
-        </TabsContent>
       </Tabs>
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Edit Contact</DialogTitle>
+            <DialogDescription>Update the contact information.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit_first_name" className="text-right">
+                First Name
+              </Label>
+              <Input
+                id="edit_first_name"
+                value={formData.first_name}
+                onChange={(e) => setFormData((prev) => ({ ...prev, first_name: e.target.value }))}
+                className="col-span-3"
+                required
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit_last_name" className="text-right">
+                Last Name
+              </Label>
+              <Input
+                id="edit_last_name"
+                value={formData.last_name}
+                onChange={(e) => setFormData((prev) => ({ ...prev, last_name: e.target.value }))}
+                className="col-span-3"
+                required
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit_email" className="text-right">
+                Email
+              </Label>
+              <Input
+                id="edit_email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
+                className="col-span-3"
+                required
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit_primary_phone" className="text-right">
+                Phone
+              </Label>
+              <Input
+                id="edit_primary_phone"
+                value={formData.primary_phone}
+                onChange={(e) => setFormData((prev) => ({ ...prev, primary_phone: e.target.value }))}
+                className="col-span-3"
+                required
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="submit" onClick={handleEditContact} className="bg-cyan-600 hover:bg-cyan-700">
+              Update Contact
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Are you sure?</DialogTitle>
+            <DialogDescription>
+              This action cannot be undone. This will permanently delete the contact.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteContact}>
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

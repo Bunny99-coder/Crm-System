@@ -142,11 +142,15 @@ export interface Event {
 
 export interface CommLog {
   id?: number
-  contact_id: number
-  communication_type: "Email" | "Call" | "Meeting" | "SMS"
-  communication_details: string
-  created_by: number
+  contact_id?: number
+  user_id?: number
+  lead_id?: number
+  deal_id?: number
+  interaction_date: string
+  interaction_type: "Call" | "Email" | "Meeting" | "SMS" | "Other"
+  notes?: string
   created_at?: string
+  deleted_at?: string
 }
 
 // ==========================
@@ -441,6 +445,26 @@ createNoteForDeal(dealId: number, note: { content: string }) {
   }
   deleteCommLog(id: number) { return this.request(`/comm-logs/${id}`, { method: "DELETE" }) }
   getCommLogsForContact(contactId: number) { return this.request<CommLog[]>(`/contacts/${contactId}/comm-logs`) }
+
+  createContactCommLog(contactId: number, commLog: Omit<CommLog, "id" | "contact_id">) {
+    return this.request<CommLog>(`/contacts/${contactId}/comm-logs`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(commLog),
+    })
+  }
+
+  updateContactCommLog(contactId: number, logId: number, commLog: Partial<Omit<CommLog, "id" | "contact_id">>) {
+    return this.request<CommLog>(`/contacts/${contactId}/comm-logs/${logId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(commLog),
+    })
+  }
+
+  deleteContactCommLog(contactId: number, logId: number) {
+    return this.request(`/contacts/${contactId}/comm-logs/${logId}`, { method: "DELETE" })
+  }
 
   // ========== User-specific Notes/Events ==========
   getNotesForUser(userId: number) { return this.request<Note[]>(`/users/${userId}/notes`) }

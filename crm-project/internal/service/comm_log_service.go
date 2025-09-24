@@ -18,8 +18,8 @@ func NewCommLogService(commLogRepo postgres.CommLogRepository) *CommLogService {
 
 // CreateCommLog creates a new communication log
 func (s *CommLogService) CreateCommLog(log *models.CommLog) error {
-    if log.ContactID == 0 {
-        return errors.New("contact ID is required")
+    if log.ContactID != nil && *log.ContactID <= 0 {
+        return errors.New("invalid contact ID")
     }
     if log.UserID == 0 {
         return errors.New("user ID is required")
@@ -71,8 +71,8 @@ func (s *CommLogService) UpdateCommLog(log *models.CommLog) error {
     if log.ID <= 0 {
         return errors.New("invalid communication log ID")
     }
-    if log.ContactID == 0 {
-        return errors.New("contact ID is required")
+    if log.ContactID != nil && *log.ContactID <= 0 {
+        return errors.New("invalid contact ID")
     }
     if log.UserID == 0 {
         return errors.New("user ID is required")
@@ -113,8 +113,8 @@ func (s *CommLogService) GetCommLogsForUser(userID int) ([]models.CommLog, error
 
 // CreateDealCommLog creates a new communication log for a deal
 func (s *CommLogService) CreateDealCommLog(log *models.CommLog) error {
-    if log.ContactID == 0 {
-        return errors.New("contact ID is required")
+    if log.ContactID != nil && *log.ContactID <= 0 {
+        return errors.New("invalid contact ID")
     }
     if log.UserID == 0 {
         return errors.New("user ID is required")
@@ -137,8 +137,8 @@ func (s *CommLogService) UpdateDealCommLog(log *models.CommLog) error {
     if log.ID <= 0 {
         return errors.New("invalid communication log ID")
     }
-    if log.ContactID == 0 {
-        return errors.New("contact ID is required")
+    if log.ContactID != nil && *log.ContactID <= 0 {
+        return errors.New("invalid contact ID")
     }
     if log.InteractionType == "" {
         return errors.New("interaction type is required")
@@ -167,7 +167,7 @@ func (s *CommLogService) DeleteDealCommLog(id int) error {
 
 // CreateContactCommLog creates a new communication log for a contact
 func (s *CommLogService) CreateContactCommLog(log *models.CommLog) error {
-    if log.ContactID == 0 {
+    if log.ContactID == nil || *log.ContactID <= 0 {
         return errors.New("contact ID is required")
     }
     if log.UserID == 0 {
@@ -188,7 +188,7 @@ func (s *CommLogService) UpdateContactCommLog(log *models.CommLog) error {
     if log.ID <= 0 {
         return errors.New("invalid communication log ID")
     }
-    if log.ContactID == 0 {
+    if log.ContactID == nil || *log.ContactID <= 0 {
         return errors.New("contact ID is required")
     }
     if log.InteractionType == "" {
@@ -200,7 +200,7 @@ func (s *CommLogService) UpdateContactCommLog(log *models.CommLog) error {
         return fmt.Errorf("failed to verify communication log existence: %w", err)
     }
 
-    if existingLog.ContactID != log.ContactID {
+    if existingLog.ContactID == nil || log.ContactID == nil || *existingLog.ContactID != *log.ContactID {
         return errors.New("communication log not found for this contact")
     }
 

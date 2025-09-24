@@ -6,7 +6,7 @@ import (
     "database/sql"
 	"github.com/jmoiron/sqlx"
 	"context"
-	
+	"log"
 )
 
 // ContactRepo is a repository for the contacts table.
@@ -22,16 +22,17 @@ func NewContactRepo(db *sqlx.DB) *ContactRepo {
 // GetAll retrieves all contacts from the database.
 func (r *ContactRepo) GetAll(ctx context.Context) ([]models.Contact, error) {
 	
-
 	var contacts []models.Contact
-	
-	query := "SELECT contact_id, first_name, last_name, email, primary_phone FROM contacts ORDER BY created_at DESC"
+	// Bug Fix: Select all columns to match the Contact struct and other queries.
+	query := `SELECT 
+				contact_id, first_name, last_name, email, primary_phone, 
+				secondary_phone, address, city, sub_city, contact_source, created_at, updated_at, created_by
+			  FROM contacts 
+			  ORDER BY created_at DESC`
 	
 	err := r.db.SelectContext(ctx, &contacts, query)
 	if err != nil {
-
-    return nil, err
-	
+		return nil, err
 	}
 
 	return contacts, nil
@@ -91,10 +92,12 @@ func (r *ContactRepo) Create(ctx context.Context, c models.Contact) (int, error)
 func (r *ContactRepo) GetByID(ctx context.Context, id int) (*models.Contact, error) {
 	var contact models.Contact
 
+	log.Printf("GetByID called with id: %d", id) // Added log
+
 	// Use all columns from your model to ensure everything is populated
 	query := `SELECT 
 				contact_id, first_name, last_name, email, primary_phone, 
-				secondary_phone, address, city, sub_city, contact_source, created_at
+				secondary_phone, address, city, sub_city, contact_source, created_at, updated_at, created_by
 			  FROM contacts 
 			  WHERE contact_id = $1`
 
@@ -127,7 +130,8 @@ func (r *ContactRepo) Update(ctx context.Context, contact models.Contact) error 
 				address = $6,
 				city = $7,
 				sub_city = $8,
-				contact_source = $9
+				contact_source = $9,
+				updated_at = NOW()
 			  WHERE contact_id = $10`
 
 	result, err := r.db.ExecContext(
@@ -191,7 +195,11 @@ func (r *ContactRepo) Delete(ctx context.Context, id int) error {
 // in contact_repo.go
 func (r *ContactRepo) GetAllForUser(ctx context.Context, userID int) ([]models.Contact, error) {
     var contacts []models.Contact
-    query := `SELECT * FROM contacts WHERE created_by = $1 ORDER BY created_at DESC`
+    query := `SELECT 
+				contact_id, first_name, last_name, email, primary_phone, 
+				secondary_phone, address, city, sub_city, contact_source, created_at, updated_at, created_by
+			  FROM contacts 
+			  WHERE created_by = $1 ORDER BY created_at DESC`
     err := r.db.SelectContext(ctx, &contacts, query, userID)
     return contacts, err
 }
