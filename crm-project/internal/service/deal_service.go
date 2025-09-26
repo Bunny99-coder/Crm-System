@@ -47,7 +47,7 @@ func (s *DealService) CreateDeal(ctx context.Context, d models.Deal) (int, error
 	}
 
 	// Set the creator of the deal to the currently logged-in user's ID.
-	d.CreatedBy = claims.UserID
+	d.CreatedBy = sql.NullInt64{Int64: int64(claims.UserID), Valid: true}
 
 	newID, err := s.dealRepo.Create(ctx, d)
 	if err != nil {
@@ -86,7 +86,7 @@ func (s *DealService) UpdateDeal(ctx context.Context, id int, d models.Deal) err
 
 	// --- PERMISSION CHECK ---
 	// A user can update if they are a Receptionist OR if they are the original creator.
-	isAllowed := claims.RoleID == s.cfg.Roles.ReceptionID || (existingDeal.CreatedBy == claims.UserID)
+	isAllowed := claims.RoleID == s.cfg.Roles.ReceptionID || (existingDeal.CreatedBy.Valid && existingDeal.CreatedBy.Int64 == int64(claims.UserID))
 
 	if !isAllowed {
 		s.logger.Warn("Permission denied for deal update", "user_id", claims.UserID, "role_id", claims.RoleID, "deal_id", id, "deal_created_by", existingDeal.CreatedBy)
@@ -162,7 +162,7 @@ func (s *DealService) GetDealByID(ctx context.Context, id int) (*models.Deal, er
 
 	// --- PERMISSION CHECK ---
 	// A user can view if they are a Receptionist OR if they are the original creator.
-	isAllowed := claims.RoleID == s.cfg.Roles.ReceptionID || (deal.CreatedBy == claims.UserID)
+	isAllowed := claims.RoleID == s.cfg.Roles.ReceptionID || (deal.CreatedBy.Valid && deal.CreatedBy.Int64 == int64(claims.UserID))
 
 	if !isAllowed {
 		s.logger.Warn("Permission denied for GetDealByID", "user_id", claims.UserID, "role_id", claims.RoleID, "deal_id", id, "deal_created_by", deal.CreatedBy)
@@ -195,7 +195,7 @@ func (s *DealService) DeleteDeal(ctx context.Context, id int) error {
 
 	// --- PERMISSION CHECK ---
 	// A user can delete if they are a Receptionist OR if they are the original creator.
-	isAllowed := claims.RoleID == s.cfg.Roles.ReceptionID || (existingDeal.CreatedBy == claims.UserID)
+	isAllowed := claims.RoleID == s.cfg.Roles.ReceptionID || (existingDeal.CreatedBy.Valid && existingDeal.CreatedBy.Int64 == int64(claims.UserID))
 
 	if !isAllowed {
 		s.logger.Warn("Permission denied for deal deletion", "user_id", claims.UserID, "role_id", claims.RoleID, "deal_id", id, "deal_created_by", existingDeal.CreatedBy)

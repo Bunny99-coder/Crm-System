@@ -26,14 +26,14 @@ func (r *DealRepo) Create(ctx context.Context,d models.Deal) (int, error) {
 
 func (r *DealRepo) GetAll(ctx context.Context,) ([]models.Deal, error) {
 	var deals []models.Deal
-	query := `SELECT * FROM deals ORDER BY deal_date DESC`
+	query := `SELECT * FROM deals`
 	err := r.db.SelectContext(ctx,&deals, query)
 	return deals, err
 }
 
 func (r *DealRepo) GetAllForUser(ctx context.Context, userID int) ([]models.Deal, error) {
 	var deals []models.Deal
-	query := `SELECT * FROM deals WHERE created_by = $1 ORDER BY deal_date DESC`
+	query := `SELECT * FROM deals WHERE created_by = $1`
 	err := r.db.SelectContext(ctx, &deals, query, userID)
 	return deals, err
 }

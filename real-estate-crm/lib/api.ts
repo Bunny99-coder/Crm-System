@@ -172,7 +172,9 @@ export interface CommLog {
 
 class ApiClient {
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    console.log("API_BASE_URL:", API_BASE_URL)
     const url = `${API_BASE_URL}${endpoint}`
+    console.log("Constructed URL:", url)
 
     const headers: Record<string, string> = {
       ...authManager.getAuthHeaders(),

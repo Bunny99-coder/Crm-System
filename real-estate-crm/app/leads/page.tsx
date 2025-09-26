@@ -14,17 +14,13 @@ export default function LeadsPage() {
   useEffect(() => {
     if (!loading && !isAuthenticated) {
       router.push("/login")
-    } else if (!loading && user?.role_id !== ROLE_SALES_AGENT) {
-      // Redirect non-sales agents to their appropriate dashboard or a general dashboard
-      if (user?.role_id === ROLE_RECEPTION) {
-        router.push("/") // Receptionists go to the main dashboard
-      } else {
-        router.push("/") // Fallback for other roles
-      }
+    } else if (!loading && user?.role_id !== ROLE_SALES_AGENT && user?.role_id !== ROLE_RECEPTION) {
+      // Redirect other non-sales agent and non-reception roles to the main dashboard
+      router.push("/")
     }
   }, [isAuthenticated, user, router, loading])
 
-  if (loading || !isAuthenticated || user?.role_id !== ROLE_SALES_AGENT) {
+  if (loading || !isAuthenticated || (user?.role_id !== ROLE_SALES_AGENT && user?.role_id !== ROLE_RECEPTION)) {
     return <div className="flex items-center justify-center h-screen">Loading...</div> // Or a loading spinner
   }
 
