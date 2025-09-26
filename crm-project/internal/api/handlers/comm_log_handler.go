@@ -393,7 +393,7 @@ func (h *CommLogHandler) DeleteContactCommLog(w http.ResponseWriter, r *http.Req
         return
     }
 
-    if existingLog.ContactID == nil || *existingLog.ContactID != contactID {
+    if existingLog.ContactID == nil || (existingLog.ContactID != nil && *existingLog.ContactID != contactID) {
         slog.Warn("Communication log does not belong to contact", "logID", logID, "contactID", contactID)
         respondWithError(w, http.StatusNotFound, "Communication log not found for this contact")
         return

@@ -31,6 +31,13 @@ func (r *DealRepo) GetAll(ctx context.Context,) ([]models.Deal, error) {
 	return deals, err
 }
 
+func (r *DealRepo) GetAllForUser(ctx context.Context, userID int) ([]models.Deal, error) {
+	var deals []models.Deal
+	query := `SELECT * FROM deals WHERE created_by = $1 ORDER BY deal_date DESC`
+	err := r.db.SelectContext(ctx, &deals, query, userID)
+	return deals, err
+}
+
 func (r *DealRepo) GetByID( ctx context.Context,id int) (*models.Deal, error) {
 	var deal models.Deal
 	query := `SELECT * FROM deals WHERE deal_id = $1`
@@ -109,6 +116,30 @@ func (r *DealRepo) GetEmployeeSalesReport(ctx context.Context) ([]EmployeeSalesR
 			total_sales_amount DESC
 	`
 	err := r.db.SelectContext(ctx, &reportRows, query)
+	return reportRows, err
+}
+
+func (r *DealRepo) GetEmployeeSalesReportForUser(ctx context.Context, userID int) ([]EmployeeSalesReportRow, error) {
+	var reportRows []EmployeeSalesReportRow
+	query := `
+		SELECT
+			u.username AS employee_name,
+			COUNT(d.deal_id) AS number_of_sales,
+			COALESCE(SUM(d.deal_amount), 0) AS total_sales_amount
+		FROM
+			deals d
+		JOIN
+			leads l ON d.lead_id = l.lead_id
+		JOIN
+			users u ON l.assigned_to = u.user_id
+		WHERE
+			d.deal_status = 'Closed-Won' AND u.user_id = $1
+		GROUP BY
+			u.username
+		ORDER BY
+			total_sales_amount DESC
+	`
+	err := r.db.SelectContext(ctx, &reportRows, query, userID)
 	return reportRows, err
 }
 

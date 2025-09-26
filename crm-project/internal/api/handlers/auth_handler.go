@@ -2,6 +2,7 @@
 package handlers
 
 import (
+	"crm-project/internal/dto"
 	"crm-project/internal/service"
 	"encoding/json"
 	"net/http"
@@ -25,7 +26,9 @@ type LoginRequest struct {
 }
 
 type LoginResponse struct {
-	Token string `json:"token"`
+	Token    string `json:"token"`
+	RoleID   int    `json:"role_id"`
+	RoleName string `json:"role_name"`
 }
 
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
@@ -36,7 +39,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	token, err := h.service.LoginUser(ctx, req.Username, req.Password)
+	token, roleID, err := h.service.LoginUser(ctx, req.Username, req.Password)
 	if err != nil {
 		h.logger.Warn("failed login attempt", "username", req.Username)
 		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
@@ -45,7 +48,33 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(LoginResponse{Token: token})
+	response := LoginResponse{Token: token, RoleID: roleID}
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		h.logger.Error("failed to encode login response", "error", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+	}
+	h.logger.Info("login response sent", "response", response)
+}
+
+func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	var req dto.RegisterRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.logger.Warn("invalid register request body", "error", err)
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	_, err := h.service.RegisterUser(ctx, &req)
+	if err != nil {
+		h.logger.Error("failed to register user", "error", err, "username", req.Username)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(map[string]string{"message": "User registered successfully"})
 }
 
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {

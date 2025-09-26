@@ -1,7 +1,5 @@
 "use client"
 
-import type React from "react"
-
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
@@ -13,6 +11,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { api } from "@/lib/api"
 import { Building2, Eye, EyeOff } from "lucide-react"
+import { ROLE_SALES_AGENT } from "@/lib/auth"
 
 export default function SignupPage() {
   const [formData, setFormData] = useState({
@@ -20,7 +19,6 @@ export default function SignupPage() {
     email: "",
     password: "",
     confirmPassword: "",
-    role_id: "",
   })
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
@@ -52,11 +50,11 @@ export default function SignupPage() {
     }
 
     try {
-      await api.createUser({
+      await api.registerUser({
         username: formData.username,
         email: formData.email,
         password: formData.password,
-        role_id: Number.parseInt(formData.role_id),
+        role_id: ROLE_SALES_AGENT, // Assign default role
       })
       setSuccess("Account created successfully! Redirecting to login...")
       setTimeout(() => {
@@ -119,24 +117,6 @@ export default function SignupPage() {
                 required
                 disabled={isLoading}
               />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="role">Role</Label>
-              <Select
-                value={formData.role_id}
-                onValueChange={(value) => handleInputChange("role_id", value)}
-                disabled={isLoading}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select your role" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1">Reception</SelectItem>
-                  <SelectItem value="2">Sales Agent</SelectItem>
-                  <SelectItem value="3">Manager</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
 
             <div className="space-y-2">

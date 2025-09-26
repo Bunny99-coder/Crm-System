@@ -8,19 +8,9 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus, Calendar, MapPin, Users } from "lucide-react"
-import { api } from "@/lib/api"
+import { api, Event } from "@/lib/api"
 
-interface Event {
-  id: number
-  title: string
-  description: string
-  event_date: string
-  event_time: string
-  location: string
-  event_type: "Meeting" | "Call" | "Site Visit" | "Presentation" | "Other"
-  attendees: string
-  created_at: string
-}
+
 
 interface DealEventsProps {
   dealId: number
@@ -31,13 +21,9 @@ export function DealEvents({ dealId }: DealEventsProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [isCreating, setIsCreating] = useState(false)
   const [formData, setFormData] = useState({
-    title: "",
-    description: "",
+    event_name: "",
+    event_description: "",
     event_date: "",
-    event_time: "",
-    location: "",
-    event_type: "Meeting" as Event["event_type"],
-    attendees: "",
   })
 
   useEffect(() => {
@@ -47,7 +33,7 @@ export function DealEvents({ dealId }: DealEventsProps) {
   const loadEvents = async () => {
     try {
       setIsLoading(true)
-      const eventsData = await api.get(`/deals/${dealId}/events`)
+      const eventsData = await api.getEventsForDeal(dealId)
       setEvents(eventsData)
     } catch (err) {
       console.error("Failed to load events:", err)
@@ -57,18 +43,14 @@ export function DealEvents({ dealId }: DealEventsProps) {
   }
 
   const handleCreateEvent = async () => {
-    if (!formData.title.trim() || !formData.event_date) return
+    if (!formData.event_name.trim() || !formData.event_date) return
 
     try {
-      await api.post(`/deals/${dealId}/events`, formData)
+      await api.createEventForDeal(dealId, formData)
       setFormData({
-        title: "",
-        description: "",
+        event_name: "",
+        event_description: "",
         event_date: "",
-        event_time: "",
-        location: "",
-        event_type: "Meeting",
-        attendees: "",
       })
       setIsCreating(false)
       loadEvents()
@@ -92,8 +74,8 @@ export function DealEvents({ dealId }: DealEventsProps) {
     )
   }
 
-  const isUpcoming = (eventDate: string, eventTime: string) => {
-    const eventDateTime = new Date(`${eventDate}T${eventTime || "00:00"}`)
+  const isUpcoming = (eventDate: string) => {
+    const eventDateTime = new Date(eventDate)
     return eventDateTime > new Date()
   }
 
@@ -123,53 +105,21 @@ export function DealEvents({ dealId }: DealEventsProps) {
           <CardContent className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
               <Input
-                placeholder="Event title"
-                value={formData.title}
-                onChange={(e) => setFormData((prev) => ({ ...prev, title: e.target.value }))}
+                placeholder="Event name"
+                value={formData.event_name}
+                onChange={(e) => setFormData((prev) => ({ ...prev, event_name: e.target.value }))}
               />
-              <Select
-                value={formData.event_type}
-                onValueChange={(value: Event["event_type"]) => setFormData((prev) => ({ ...prev, event_type: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Meeting">Meeting</SelectItem>
-                  <SelectItem value="Call">Call</SelectItem>
-                  <SelectItem value="Site Visit">Site Visit</SelectItem>
-                  <SelectItem value="Presentation">Presentation</SelectItem>
-                  <SelectItem value="Other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-4 md:grid-cols-3">
               <Input
                 type="date"
                 value={formData.event_date}
                 onChange={(e) => setFormData((prev) => ({ ...prev, event_date: e.target.value }))}
               />
-              <Input
-                type="time"
-                value={formData.event_time}
-                onChange={(e) => setFormData((prev) => ({ ...prev, event_time: e.target.value }))}
-              />
-              <Input
-                placeholder="Location"
-                value={formData.location}
-                onChange={(e) => setFormData((prev) => ({ ...prev, location: e.target.value }))}
-              />
             </div>
             <Textarea
               placeholder="Event description"
-              value={formData.description}
-              onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
+              value={formData.event_description}
+              onChange={(e) => setFormData((prev) => ({ ...prev, event_description: e.target.value }))}
               rows={2}
-            />
-            <Input
-              placeholder="Attendees (comma separated)"
-              value={formData.attendees}
-              onChange={(e) => setFormData((prev) => ({ ...prev, attendees: e.target.value }))}
             />
             <div className="flex gap-2">
               <Button onClick={handleCreateEvent} size="sm" className="bg-cyan-600 hover:bg-cyan-700">
@@ -179,13 +129,9 @@ export function DealEvents({ dealId }: DealEventsProps) {
                 onClick={() => {
                   setIsCreating(false)
                   setFormData({
-                    title: "",
-                    description: "",
+                    event_name: "",
+                    event_description: "",
                     event_date: "",
-                    event_time: "",
-                    location: "",
-                    event_type: "Meeting",
-                    attendees: "",
                   })
                 }}
                 variant="outline"
@@ -208,39 +154,25 @@ export function DealEvents({ dealId }: DealEventsProps) {
           </Card>
         ) : (
           events.map((event) => (
-            <Card key={event.id} className={isUpcoming(event.event_date, event.event_time) ? "border-cyan-200" : ""}>
+            <Card key={event.id} className={isUpcoming(event.event_date) ? "border-cyan-200" : ""}>
               <CardContent className="pt-6">
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <h4 className="font-medium">{event.title}</h4>
+                    <h4 className="font-medium">{event.event_name}</h4>
                     <div className="flex gap-2">
-                      {getEventTypeBadge(event.event_type)}
-                      {isUpcoming(event.event_date, event.event_time) && (
+                      {isUpcoming(event.event_date) && (
                         <Badge variant="outline" className="bg-cyan-50 text-cyan-700 border-cyan-200">
                           Upcoming
                         </Badge>
                       )}
                     </div>
                   </div>
-                  {event.description && <p className="text-sm text-muted-foreground">{event.description}</p>}
+                  {event.event_description && <p className="text-sm text-muted-foreground">{event.event_description}</p>}
                   <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                     <div className="flex items-center gap-1">
                       <Calendar className="h-4 w-4" />
                       {new Date(event.event_date).toLocaleDateString()}
-                      {event.event_time && ` at ${event.event_time}`}
                     </div>
-                    {event.location && (
-                      <div className="flex items-center gap-1">
-                        <MapPin className="h-4 w-4" />
-                        {event.location}
-                      </div>
-                    )}
-                    {event.attendees && (
-                      <div className="flex items-center gap-1">
-                        <Users className="h-4 w-4" />
-                        {event.attendees}
-                      </div>
-                    )}
                   </div>
                 </div>
               </CardContent>

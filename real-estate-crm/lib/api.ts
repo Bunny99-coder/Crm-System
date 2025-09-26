@@ -1,7 +1,7 @@
 // lib/api.ts
 import { authManager } from "./auth"
 
-const API_BASE_URL = "http://localhost:8080/api/v1"
+const API_BASE_URL = "http://localhost:8081/api/v1"
 
 // ==========================
 // Types (OpenAPI Spec based)
@@ -12,8 +12,9 @@ export interface Contact {
   last_name: string
   email: string
   primary_phone: string
-  created_at?: string  // add this line
+  created_at?: string
   updated_at?: string
+  created_by?: number // Add this line
 }
 
 export interface Property {
@@ -43,6 +44,7 @@ export interface Deal {
   stage_id: number
   deal_status: "Pending" | "Closed-Won" | "Closed-Lost"
   deal_amount: number
+  created_by?: number // Add this line
 }
 
 export interface Task {
@@ -106,6 +108,13 @@ export interface EmployeeSalesReportRow {
   employee_name: string
   number_of_sales: number
   total_sales_amount: number
+}
+
+export interface DealsPipelineReport {
+  stage_name: string
+  deal_count: number
+  total_value: number
+  avg_days_in_stage: number
 }
 
 // Activity & subtypes
@@ -209,8 +218,8 @@ class ApiClient {
     })
   }
 
-  async createUser(userData: { username: string; email: string; password: string; role_id: number }): Promise<User> {
-    return this.request("/users", {
+  async registerUser(userData: { username: string; email: string; password: string; role_id: number }): Promise<void> {
+    return this.request("/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(userData),
@@ -275,6 +284,38 @@ createNoteForDeal(dealId: number, note: { content: string }) {
 
   deleteNoteForDeal(dealId: number, noteId: number) {
     return this.request(`/deals/${dealId}/notes/${noteId}`, { method: "DELETE" })
+  }
+
+  getEventsForDeal(dealId: number) {
+    return this.request<Event[]>(`/deals/${dealId}/events`)
+  }
+
+  createEventForDeal(dealId: number, event: Omit<Event, "id">) {
+    return this.request<Event>(`/deals/${dealId}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(event),
+    })
+  }
+
+  getTasksForDeal(dealId: number) {
+    return this.request<Task[]>(`/deals/${dealId}/tasks`)
+  }
+
+  createTaskForDeal(dealId: number, task: Omit<Task, "id">) {
+    return this.request<Task>(`/deals/${dealId}/tasks`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(task),
+    })
+  }
+
+  updateTaskForDeal(dealId: number, taskId: number, task: Partial<Omit<Task, "id">>) {
+    return this.request<Task>(`/deals/${dealId}/tasks/${taskId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(task),
+    })
   }
 
 
@@ -461,7 +502,6 @@ createNoteForDeal(dealId: number, note: { content: string }) {
       body: JSON.stringify(commLog),
     })
   }
-
   deleteContactCommLog(contactId: number, logId: number) {
     return this.request(`/contacts/${contactId}/comm-logs/${logId}`, { method: "DELETE" })
   }
@@ -475,6 +515,10 @@ createNoteForDeal(dealId: number, note: { content: string }) {
   getSourceLeadReport() { return this.request<SourceLeadReportRow[]>("/reports/source-leads") }
   getEmployeeSalesReport() { return this.request<EmployeeSalesReportRow[]>("/reports/employee-sales") }
   getSourceSalesReport() { return this.request<SourceSalesReportRow[]>("/reports/source-sales") }
+
+  getMySalesReport() { return this.request<EmployeeSalesReportRow[]>("/reports/my-sales") }
+
+  getDealsPipelineReport(period: string) { return this.request<DealsPipelineReport[]>(`/reports/deals-pipeline?period=${period}`) }
 }
 
 export const api = new ApiClient()

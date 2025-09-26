@@ -73,7 +73,7 @@ func convertTaskToResponse(task *models.Task) TaskResponse {
 func (h *TaskHandler) GetAllTasks(w http.ResponseWriter, r *http.Request) {
     slog.Info("GetAllTasks called", "method", r.Method, "url", r.URL.Path)
 
-    tasks, err := h.taskService.GetAllTasks()
+    tasks, err := h.taskService.GetAllTasks(r.Context())
     if err != nil {
         slog.Error("Failed to get all tasks", "error", err)
         respondWithError(w, http.StatusInternalServerError, "Failed to get tasks: "+err.Error())
@@ -117,7 +117,7 @@ func (h *TaskHandler) CreateTask(w http.ResponseWriter, r *http.Request) {
         CreatedAt:       time.Now(),
     }
 
-    if err := h.taskService.CreateTask(task); err != nil {
+    if _, err := h.taskService.CreateTask(r.Context(), task); err != nil {
         slog.Error("Failed to create task", "error", err)
         respondWithError(w, http.StatusInternalServerError, "Failed to create task: "+err.Error())
         return
@@ -137,7 +137,7 @@ func (h *TaskHandler) GetTaskByID(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    task, err := h.taskService.GetTaskByID(taskID)
+    task, err := h.taskService.GetTaskByID(r.Context(), taskID)
     if err != nil {
         slog.Error("Failed to get task", "taskID", taskID, "error", err)
         respondWithError(w, http.StatusNotFound, "Task not found: "+err.Error())
@@ -181,13 +181,13 @@ func (h *TaskHandler) UpdateTask(w http.ResponseWriter, r *http.Request) {
         AssignedTo:      userID,
     }
 
-    if err := h.taskService.UpdateTask(task); err != nil {
+    if err := h.taskService.UpdateTask(r.Context(), task); err != nil {
         slog.Error("Failed to update task", "taskID", taskID, "error", err)
         respondWithError(w, http.StatusInternalServerError, "Failed to update task: "+err.Error())
         return
     }
 
-    updatedTask, err := h.taskService.GetTaskByID(taskID)
+    updatedTask, err := h.taskService.GetTaskByID(r.Context(), taskID)
     if err != nil {
         slog.Error("Failed to fetch updated task", "taskID", taskID, "error", err)
         respondWithError(w, http.StatusInternalServerError, "Failed to get updated task: "+err.Error())
@@ -214,7 +214,7 @@ func (h *TaskHandler) DeleteTask(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    existingTask, err := h.taskService.GetTaskByID(taskID)
+    existingTask, err := h.taskService.GetTaskByID(r.Context(), taskID)
     if err != nil {
         slog.Error("Task not found", "taskID", taskID, "error", err)
         respondWithError(w, http.StatusNotFound, "Task not found: "+err.Error())
@@ -227,7 +227,7 @@ func (h *TaskHandler) DeleteTask(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    if err := h.taskService.DeleteTask(taskID); err != nil {
+    if err := h.taskService.DeleteTask(r.Context(), taskID); err != nil {
         slog.Error("Failed to delete task", "taskID", taskID, "error", err)
         respondWithError(w, http.StatusInternalServerError, "Failed to delete task: "+err.Error())
         return
@@ -247,7 +247,7 @@ func (h *TaskHandler) GetTasksForUser(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    tasks, err := h.taskService.GetTasksForUser(userID)
+    tasks, err := h.taskService.GetTasksForUser(r.Context(), userID)
     if err != nil {
         slog.Error("Failed to get user tasks", "userID", userID, "error", err)
         respondWithError(w, http.StatusInternalServerError, "Failed to get user tasks: "+err.Error())
@@ -273,7 +273,7 @@ func (h *TaskHandler) GetDealTasks(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    tasks, err := h.taskService.GetTasksByDealID(dealID)
+    tasks, err := h.taskService.GetTasksByDealID(r.Context(), dealID)
     if err != nil {
         slog.Error("Failed to get deal tasks", "dealID", dealID, "error", err)
         respondWithError(w, http.StatusInternalServerError, "Failed to get deal tasks: "+err.Error())
@@ -323,7 +323,7 @@ func (h *TaskHandler) CreateDealTask(w http.ResponseWriter, r *http.Request) {
         CreatedAt:       time.Now(),
     }
 
-    if err := h.taskService.CreateDealTask(task); err != nil {
+    if _, err := h.taskService.CreateDealTask(r.Context(), task); err != nil {
         slog.Error("Failed to create deal task", "error", err)
         respondWithError(w, http.StatusInternalServerError, "Failed to create deal task: "+err.Error())
         return
@@ -374,13 +374,13 @@ func (h *TaskHandler) UpdateDealTask(w http.ResponseWriter, r *http.Request) {
         DealID:          &dealID,
     }
 
-    if err := h.taskService.UpdateDealTask(task); err != nil {
+    if err := h.taskService.UpdateDealTask(r.Context(), task); err != nil {
         slog.Error("Failed to update deal task", "taskID", taskID, "error", err)
         respondWithError(w, http.StatusInternalServerError, "Failed to update deal task: "+err.Error())
         return
     }
 
-    updatedTask, err := h.taskService.GetTaskByID(taskID)
+    updatedTask, err := h.taskService.GetTaskByID(r.Context(), taskID)
     if err != nil {
         slog.Error("Failed to fetch updated task", "taskID", taskID, "error", err)
         respondWithError(w, http.StatusInternalServerError, "Failed to get updated task: "+err.Error())
@@ -414,7 +414,7 @@ func (h *TaskHandler) DeleteDealTask(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    existingTask, err := h.taskService.GetTaskByID(taskID)
+    existingTask, err := h.taskService.GetTaskByID(r.Context(), taskID)
     if err != nil {
         slog.Error("Task not found", "taskID", taskID, "error", err)
         respondWithError(w, http.StatusNotFound, "Task not found: "+err.Error())
@@ -433,7 +433,7 @@ func (h *TaskHandler) DeleteDealTask(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    if err := h.taskService.DeleteDealTask(taskID); err != nil {
+    if err := h.taskService.DeleteDealTask(r.Context(), taskID); err != nil {
         slog.Error("Failed to delete deal task", "taskID", taskID, "error", err)
         respondWithError(w, http.StatusInternalServerError, "Failed to delete deal task: "+err.Error())
         return

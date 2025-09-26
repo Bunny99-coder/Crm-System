@@ -9,17 +9,8 @@ import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus, Calendar, User } from "lucide-react"
-import { api } from "@/lib/api"
+import { api, Task } from "@/lib/api"
 
-interface Task {
-  id: number
-  title: string
-  description: string
-  due_date: string
-  status: "Pending" | "Completed"
-  assigned_to: number
-  created_at: string
-}
 
 interface DealTasksProps {
   dealId: number
@@ -30,8 +21,8 @@ export function DealTasks({ dealId }: DealTasksProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [isCreating, setIsCreating] = useState(false)
   const [formData, setFormData] = useState({
-    title: "",
-    description: "",
+    task_name: "",
+    task_description: "",
     due_date: "",
     assigned_to: "",
   })
@@ -43,7 +34,7 @@ export function DealTasks({ dealId }: DealTasksProps) {
   const loadTasks = async () => {
     try {
       setIsLoading(true)
-      const tasksData = await api.get(`/deals/${dealId}/tasks`)
+      const tasksData = await api.getTasksForDeal(dealId)
       setTasks(tasksData)
     } catch (err) {
       console.error("Failed to load tasks:", err)
@@ -53,17 +44,17 @@ export function DealTasks({ dealId }: DealTasksProps) {
   }
 
   const handleCreateTask = async () => {
-    if (!formData.title.trim()) return
+    if (!formData.task_name.trim()) return
 
     try {
-      await api.post(`/deals/${dealId}/tasks`, {
-        title: formData.title,
-        description: formData.description,
+      await api.createTaskForDeal(dealId, {
+        task_name: formData.task_name,
+        task_description: formData.task_description,
         due_date: formData.due_date,
         assigned_to: Number(formData.assigned_to),
         status: "Pending",
       })
-      setFormData({ title: "", description: "", due_date: "", assigned_to: "" })
+      setFormData({ task_name: "", task_description: "", due_date: "", assigned_to: "" })
       setIsCreating(false)
       loadTasks()
     } catch (err) {
@@ -75,7 +66,7 @@ export function DealTasks({ dealId }: DealTasksProps) {
     const newStatus = currentStatus === "Pending" ? "Completed" : "Pending"
 
     try {
-      await api.put(`/deals/${dealId}/tasks/${taskId}`, { status: newStatus })
+      await api.updateTaskForDeal(dealId, taskId, { status: newStatus })
       loadTasks()
     } catch (err) {
       console.error("Failed to update task:", err)
@@ -135,9 +126,9 @@ export function DealTasks({ dealId }: DealTasksProps) {
             <div className="grid gap-4 md:grid-cols-2">
               <div>
                 <Input
-                  placeholder="Task title"
-                  value={formData.title}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, title: e.target.value }))}
+                  placeholder="Task name"
+                  value={formData.task_name}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, task_name: e.target.value }))}
                 />
               </div>
               <div>
@@ -150,8 +141,8 @@ export function DealTasks({ dealId }: DealTasksProps) {
             </div>
             <Textarea
               placeholder="Task description (optional)"
-              value={formData.description}
-              onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
+              value={formData.task_description}
+              onChange={(e) => setFormData((prev) => ({ ...prev, task_description: e.target.value }))}
               rows={2}
             />
             <Select
@@ -174,7 +165,7 @@ export function DealTasks({ dealId }: DealTasksProps) {
               <Button
                 onClick={() => {
                   setIsCreating(false)
-                  setFormData({ title: "", description: "", due_date: "", assigned_to: "" })
+                  setFormData({ task_name: "", task_description: "", due_date: "", assigned_to: "" })
                 }}
                 variant="outline"
                 size="sm"
@@ -209,11 +200,11 @@ export function DealTasks({ dealId }: DealTasksProps) {
                       <h4
                         className={`font-medium ${task.status === "Completed" ? "line-through text-muted-foreground" : ""}`}
                       >
-                        {task.title}
+                        {task.task_name}
                       </h4>
                       {getStatusBadge(task)}
                     </div>
-                    {task.description && <p className="text-sm text-muted-foreground">{task.description}</p>}
+                    {task.task_description && <p className="text-sm text-muted-foreground">{task.task_description}</p>}
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
                       <div className="flex items-center gap-1">
                         <Calendar className="h-4 w-4" />

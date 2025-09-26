@@ -183,3 +183,10 @@ func (r *LeadRepo) CheckForOpenLeadByContactID(ctx context.Context, contactID in
     err := r.db.GetContext(ctx, &exists, query, contactID)
     return exists, err
 }
+
+func (r *LeadRepo) GetAllLeadsForUser(ctx context.Context, userID int) ([]models.Lead, error) {
+	var leads []models.Lead
+	query := `SELECT * FROM leads WHERE assigned_to = $1 ORDER BY created_at DESC`
+	err := r.db.SelectContext(ctx, &leads, query, userID)
+	return leads, err
+}

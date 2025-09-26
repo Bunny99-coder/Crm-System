@@ -1,19 +1,28 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useRouter } from 'next/navigation';
+import { api } from "./api"
+
+// ======================
+// Role Constants
+// ======================
+export const ROLE_SALES_AGENT = 1
+export const ROLE_RECEPTION = 2 // Manager role
 
 // ======================
 // Types
 // ======================
-export interface LoginResponse {
-  token: string
+export interface User {
+  id?: number
+  username: string
+  email: string
+  role_id: number
 }
 
-export interface User {
-  id: number
-  username: string
-  email?: string
-  role_id: number
+export interface LoginResponse {
+  token: string
+  user: User
 }
 
 // ======================
@@ -25,13 +34,7 @@ class AuthManager {
   private user: User | null = null
 
   private constructor() {
-    // Load from localStorage
-    if (typeof window !== "undefined") {
-      this.token = localStorage.getItem("jwt_token")
-      if (this.token) {
-        this.user = this.decodeUserFromToken(this.token)
-      }
-    }
+    // Do not load from localStorage here to avoid SSR issues
   }
 
   public static getInstance(): AuthManager {
@@ -39,6 +42,15 @@ class AuthManager {
       AuthManager.instance = new AuthManager()
     }
     return AuthManager.instance
+  }
+
+  public initFromLocalStorage(): void {
+    if (typeof window !== "undefined") {
+      this.token = localStorage.getItem("jwt_token")
+      if (this.token) {
+        this.user = this.decodeUserFromToken(this.token)
+      }
+    }
   }
 
   public setAuth(token: string): void {
@@ -60,19 +72,25 @@ class AuthManager {
   }
 
   public getToken(): string | null {
+    if (!this.token && typeof window !== "undefined") {
+      this.token = localStorage.getItem("jwt_token")
+    }
     return this.token
   }
 
   public getUser(): User | null {
+    if (!this.user && this.token) { // Only decode if token exists
+      this.user = this.decodeUserFromToken(this.token)
+    }
     return this.user
   }
 
   public isAuthenticated(): boolean {
-    return this.token !== null && this.user !== null && !this.isTokenExpired()
+    return this.getToken() !== null && this.getUser() !== null && !this.isTokenExpired()
   }
 
   public hasRole(roleId: number): boolean {
-    return this.user?.role_id === roleId
+    return this.getUser()?.role_id === roleId
   }
 
   // ======================
@@ -94,9 +112,9 @@ class AuthManager {
   }
 
   public isTokenExpired(): boolean {
-    if (!this.token) return true
+    if (!this.getToken()) return true
     try {
-      const payload = JSON.parse(atob(this.token.split(".")[1]))
+      const payload = JSON.parse(atob(this.getToken()!.split(".")[1]))
       const currentTime = Math.floor(Date.now() / 1000)
       return payload.exp && payload.exp < currentTime
     } catch {
@@ -108,51 +126,57 @@ class AuthManager {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
     }
-    if (this.token && !this.isTokenExpired()) {
-      headers["Authorization"] = `Bearer ${this.token}`
+    if (this.getToken() && !this.isTokenExpired()) {
+      headers["Authorization"] = `Bearer ${this.getToken()}`
     }
     return headers
   }
 }
 
 export const authManager = AuthManager.getInstance()
+// Call initFromLocalStorage immediately after getting the instance
+// This ensures localStorage is checked as early as possible on the client side.
+if (typeof window !== "undefined") {
+  authManager.initFromLocalStorage()
+}
 
 // ======================
 // React Hook
 // ======================
+
 export function useAuth() {
-  const [isAuthenticated, setIsAuthenticated] = useState(authManager.isAuthenticated())
-  const [user, setUser] = useState(authManager.getUser())
+  const [loading, setLoading] = useState(true)
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false)
+  const [user, setUser] = useState<User | null>(null)
+
+  useEffect(() => {
+    authManager.initFromLocalStorage()
+    setIsAuthenticated(authManager.isAuthenticated())
+    setUser(authManager.getUser())
+    setLoading(false)
+  }, [])
 
   const login = async (username: string, password: string): Promise<LoginResponse> => {
     try {
-      const response = await fetch("http://localhost:8080/api/v1/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
-      })
-
-      if (!response.ok) {
-        throw new Error("Login failed")
-      }
-
-      const data: LoginResponse = await response.json()
+      const data = await api.login(username, password)
       authManager.setAuth(data.token)
       setIsAuthenticated(true)
       setUser(authManager.getUser())
-
       return data
     } catch (error) {
       console.error("Login error:", error)
       throw error
-    }
+    } 
   }
 
   const logout = () => {
     authManager.clearAuth()
     setIsAuthenticated(false)
     setUser(null)
+    
+    router.push("/login")
   }
+
 
   const checkAuth = () => {
     const authenticated = authManager.isAuthenticated()
@@ -164,6 +188,7 @@ export function useAuth() {
   }
 
   return {
+    loading,
     isAuthenticated,
     user,
     login,

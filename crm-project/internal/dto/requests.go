@@ -5,6 +5,13 @@ import "github.com/golang-jwt/jwt/v5" // <-- ADD THIS IMPORT
 
 // --- User Request DTOs ---
 
+type RegisterRequest struct {
+	Username string `json:"username" validate:"required,min=3,max=50"`
+	Password string `json:"password" validate:"required,min=8"`
+	Email    string `json:"email"    validate:"required,email"`
+	RoleID   int    `json:"role_id"  validate:"required,oneof=1 2"`
+}
+
 type CreateUserRequest struct {
 	Username string `json:"username" validate:"required,min=3,max=50"`
 	Password string `json:"password" validate:"required,min=8"`
@@ -28,8 +35,3 @@ type Claims struct {
 
 	jwt.RegisteredClaims
 }
-
-const (
-	RoleSalesAgent = 1
-	RoleReception  = 2
-)

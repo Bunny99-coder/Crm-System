@@ -59,14 +59,14 @@ eventRepo := postgres.NewEventRepository(db)
 
 
 	// Service Layer
-	authService := service.NewAuthService(userRepo, cfg.Auth.JWTSecret, logger)
-	contactService := service.NewContactService(contactRepo, logger)
-	userService := service.NewUserService(userRepo, logger)
-	propertyService := service.NewPropertyService(propertyRepo, logger)
-	leadService := service.NewLeadService(leadRepo, contactRepo, userRepo, propertyRepo, logger)
-	dealService := service.NewDealService(dealRepo, leadRepo, propertyRepo, logger)
-	reportService := service.NewReportService(userRepo, leadRepo, dealRepo, logger)
-taskService := service.NewTaskService(taskRepo)	
+	authService := service.NewAuthService(userRepo, cfg, logger)
+	contactService := service.NewContactService(contactRepo, cfg, logger)
+	userService := service.NewUserService(userRepo, cfg, logger)
+	propertyService := service.NewPropertyService(propertyRepo, cfg, logger)
+	leadService := service.NewLeadService(leadRepo, contactRepo, userRepo, propertyRepo, cfg, logger)
+	dealService := service.NewDealService(dealRepo, leadRepo, propertyRepo, cfg, logger)
+	reportService := service.NewReportService(userRepo, leadRepo, dealRepo, cfg, logger)
+taskService := service.NewTaskService(taskRepo, cfg, logger)	
 	commLogService := service.NewCommLogService(commLogRepo) // Corrected to match service constructor
 noteService := service.NewNoteService(noteRepo)
 eventService := service.NewEventService(eventRepo)
@@ -87,6 +87,7 @@ taskHandler := handlers.NewTaskHandler(taskService)
 noteHandler := handlers.NewNoteHandler(noteService)
 eventHandler := handlers.NewEventHandler(eventService)	// Router
 	router := api.NewRouter(
+		cfg, // Pass the entire config object
 		cfg.Auth.JWTSecret,
 		authHandler,
 		contactHandler,
@@ -100,6 +101,8 @@ eventHandler := handlers.NewEventHandler(eventService)	// Router
 		noteHandler,
 		eventHandler,
 	)
+
+	router.Get("/reports/my-sales", reportHandler.GetMySalesReport)
 	
 	
     // --- PASTE THIS ENTIRE BLOCK OF CODE HERE ---
@@ -108,7 +111,7 @@ eventHandler := handlers.NewEventHandler(eventService)	// Router
 		fmt.Printf("%s \t %s\n", method, route)
 		return nil
 	}
-if err := chi.Walk(router.(chi.Router), walkFunc); err != nil {
+if err := chi.Walk(router, walkFunc); err != nil {
 		logger.Error("failed to walk routes", "error", err)
 	}
 	logger.Info("-------------------------")

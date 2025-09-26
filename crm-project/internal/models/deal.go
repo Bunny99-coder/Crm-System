@@ -16,4 +16,5 @@ type Deal struct {
 	Notes       *string    `db:"notes"        json:"notes,omitempty"`
 	CreatedAt   time.Time  `db:"created_at"   json:"created_at"`
 	UpdatedAt   time.Time  `db:"updated_at"   json:"updated_at"`
+	CreatedBy   int        `db:"created_by"   json:"created_by"`
 }

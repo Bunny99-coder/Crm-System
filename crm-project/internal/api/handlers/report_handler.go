@@ -64,3 +64,15 @@ func (h *ReportHandler) GetSourceSalesReport(w http.ResponseWriter, r *http.Requ
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(report)
 }
+
+func (h *ReportHandler) GetMySalesReport(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	report, err := h.service.GetMySalesReport(ctx)
+	if err != nil {
+		h.logger.Error("failed to generate personal sales report", "error", err)
+		http.Error(w, "Failed to generate report", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(report)
+}

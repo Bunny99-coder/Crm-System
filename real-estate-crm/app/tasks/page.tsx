@@ -1,10 +1,26 @@
 "use client"
 
-import { DashboardSidebar } from "@/components/dashboard-sidebar"
-import { DashboardHeader } from "@/components/dashboard-header"
+import { useEffect } from "react"
+import { useRouter } from "next/navigation"
+import DashboardSidebar from "@/components/dashboard-sidebar"
+import DashboardHeader from "@/components/dashboard-header"
 import { TasksManagement } from "@/components/tasks-management"
+import { useAuth } from "@/lib/auth"
 
 export default function TasksPage() {
+  const { isAuthenticated, loading } = useAuth()
+  const router = useRouter()
+
+  useEffect(() => {
+    if (!loading && !isAuthenticated) {
+      router.push("/login")
+    }
+  }, [isAuthenticated, router, loading])
+
+  if (loading || !isAuthenticated) {
+    return <div className="flex items-center justify-center h-screen">Loading...</div> // Or a loading spinner
+  }
+
   return (
     <div className="flex h-screen bg-background">
       {/* Sidebar */}

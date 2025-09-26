@@ -1,6 +1,6 @@
 # config.yml
 server:
-  port: ":8080"
+  port: "127.0.0.1:8081"
 
 database:
   url: "postgres://crm_user:postgres@localhost:5432/crm_db?sslmode=disable"

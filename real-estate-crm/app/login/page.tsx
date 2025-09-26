@@ -2,11 +2,11 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { useAuth } from "@/lib/auth"
+import { useAuth, ROLE_SALES_AGENT, ROLE_RECEPTION } from "@/lib/auth"
 
 export default function LoginPage() {
   const router = useRouter()
-  const { login } = useAuth()
+  const { login, user } = useAuth()
 
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
@@ -19,8 +19,16 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      await login(username, password)
-      router.push("/") // 👈 redirect after success
+      const loginResponse = await login(username, password)
+      // Role-based redirection
+      if (loginResponse.role_id === ROLE_RECEPTION) {
+        router.push("/")
+      } else if (loginResponse.role_id === ROLE_SALES_AGENT) {
+        router.push("/")
+      } else {
+        // Default or fallback for other roles
+        router.push("/")
+      }
     } catch (err) {
       setError("Invalid credentials, please try again.")
     } finally {

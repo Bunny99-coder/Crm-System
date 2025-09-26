@@ -21,8 +21,12 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { MoreHorizontal, Search, Plus, Edit, Trash2, Users, Target, TrendingUp, UserCheck } from "lucide-react"
 import { api, type Lead, type Contact, type Property, type User } from "@/lib/api"
+import { useAuth, ROLE_RECEPTION, ROLE_SALES_AGENT } from "@/lib/auth" // Import useAuth and role constants
+import { useToast } from "@/hooks/use-toast" // Import useToast
 
 export function LeadsManagement() {
+  const { toast } = useToast() // Initialize toast
+
   const [leads, setLeads] = useState<Lead[]>([])
   const [contacts, setContacts] = useState<Contact[]>([])
   const [properties, setProperties] = useState<Property[]>([])
@@ -42,29 +46,52 @@ export function LeadsManagement() {
     notes: "",
   })
 
-  // Load data on component mount
-  useEffect(() => {
-    loadAllData()
-  }, [])
+  const { user, hasRole } = useAuth() // Use the useAuth hook
 
-  const loadAllData = async () => {
+  // Load data on component mount or when user changes
+  useEffect(() => {
+    if (user) {
+      loadAllData(user)
+    }
+  }, [user])
+
+  const loadAllData = async (currentUser: User) => {
     try {
       setIsLoading(true)
-      const [leadsData, contactsData, propertiesData, usersData] = await Promise.all([
-        api.getLeads(),
-        api.getContacts(),
-        api.getProperties(),
-        api.getUsers(),
-      ])
+      const leadsData = await api.getLeads()
       setLeads(leadsData)
-      setContacts(contactsData)
-      setProperties(propertiesData)
-      setUsers(usersData)
     } catch (err) {
-      setError("Failed to load data")
-    } finally {
-      setIsLoading(false)
+      setError("Failed to load leads")
     }
+
+    try {
+      const contactsData = await api.getContacts()
+      setContacts(contactsData)
+    } catch (err) {
+      setError("Failed to load contacts")
+    }
+
+    try {
+      const propertiesData = await api.getProperties()
+      setProperties(propertiesData)
+    } catch (err) {
+      setError("Failed to load properties")
+    }
+
+    try {
+      if (currentUser.role_id === ROLE_SALES_AGENT) {
+        // If sales agent, only show themselves in the assigned_to dropdown
+        setUsers(currentUser ? [currentUser] : [])
+      } else {
+        // For other roles (e.g., Reception), fetch all users
+        const usersData = await api.getUsers()
+        setUsers(usersData)
+      }
+    } catch (err) {
+      setError("Failed to load users")
+    }
+
+    setIsLoading(false)
   }
 
   const handleCreateLead = async () => {
@@ -80,10 +107,20 @@ export function LeadsManagement() {
       await api.createLead(leadData)
       setIsCreateDialogOpen(false)
       resetForm()
-      loadAllData()
-    } catch (err) {
-      setError("Failed to create lead")
-    }
+        toast({
+          title: 'Lead created',
+          description: 'The new lead has been successfully added.',
+        });
+      } catch (error) {
+        console.error('Failed to create lead:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to create lead. Please try again.',
+          variant: 'destructive',
+        });
+      } finally {
+        setIsLoading(false);
+      }
   }
 
   const handleEditLead = async () => {
@@ -102,7 +139,7 @@ export function LeadsManagement() {
       setIsEditDialogOpen(false)
       resetForm()
       setSelectedLead(null)
-      loadAllData()
+      loadAllData(user!)
     } catch (err) {
       setError("Failed to update lead")
     }
@@ -113,7 +150,7 @@ export function LeadsManagement() {
 
     try {
       await api.deleteLead(id)
-      loadAllData()
+      loadAllData(user!)
     } catch (err) {
       setError("Failed to delete lead")
     }
@@ -208,134 +245,136 @@ export function LeadsManagement() {
           <h1 className="text-3xl font-bold text-balance text-foreground">Leads Management</h1>
           <p className="text-muted-foreground text-pretty">Track and manage your sales leads through the pipeline</p>
         </div>
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-cyan-600 hover:bg-cyan-700">
-              <Plus className="mr-2 h-4 w-4" />
-              Add Lead
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>Create New Lead</DialogTitle>
-              <DialogDescription>Add a new lead to your sales pipeline.</DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="contact_id" className="text-right">
-                  Contact
-                </Label>
-                <Select
-                  value={formData.contact_id}
-                  onValueChange={(value) => setFormData((prev) => ({ ...prev, contact_id: value }))}
-                >
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select contact" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {contacts.map((contact) => (
-                      <SelectItem key={contact.id} value={contact.id!.toString()}>
-                        {contact.first_name} {contact.last_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="property_id" className="text-right">
-                  Property
-                </Label>
-                <Select
-                  value={formData.property_id}
-                  onValueChange={(value) => setFormData((prev) => ({ ...prev, property_id: value }))}
-                >
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select property" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {properties.map((property) => (
-                      <SelectItem key={property.id} value={property.id!.toString()}>
-                        {property.name} - {property.unit_no}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="source_id" className="text-right">
-                  Source ID
-                </Label>
-                <Input
-                  id="source_id"
-                  type="number"
-                  value={formData.source_id}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, source_id: e.target.value }))}
-                  className="col-span-3"
-                  placeholder="Lead source ID"
-                  required
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="status_id" className="text-right">
-                  Status
-                </Label>
-                <Select
-                  value={formData.status_id}
-                  onValueChange={(value) => setFormData((prev) => ({ ...prev, status_id: value }))}
-                >
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1">New</SelectItem>
-                    <SelectItem value="2">Contacted</SelectItem>
-                    <SelectItem value="3">Qualified</SelectItem>
-                    <SelectItem value="4">Converted</SelectItem>
-                    <SelectItem value="5">Lost</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="assigned_to" className="text-right">
-                  Assigned To
-                </Label>
-                <Select
-                  value={formData.assigned_to}
-                  onValueChange={(value) => setFormData((prev) => ({ ...prev, assigned_to: value }))}
-                >
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select user" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {users.map((user) => (
-                      <SelectItem key={user.id} value={user.id!.toString()}>
-                        {user.username}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="notes" className="text-right">
-                  Notes
-                </Label>
-                <Textarea
-                  id="notes"
-                  value={formData.notes}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, notes: e.target.value }))}
-                  className="col-span-3"
-                  placeholder="Lead notes and comments"
-                  rows={3}
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button type="submit" onClick={handleCreateLead} className="bg-cyan-600 hover:bg-cyan-700">
-                Create Lead
+        {hasRole(ROLE_RECEPTION) && (
+          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-cyan-600 hover:bg-cyan-700">
+                <Plus className="mr-2 h-4 w-4" />
+                Add Lead
               </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[500px]">
+              <DialogHeader>
+                <DialogTitle>Create New Lead</DialogTitle>
+                <DialogDescription>Add a new lead to your sales pipeline.</DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="contact_id" className="text-right">
+                    Contact
+                  </Label>
+                  <Select
+                    value={formData.contact_id}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, contact_id: value }))}
+                  >
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue placeholder="Select contact" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {contacts.map((contact) => (
+                        <SelectItem key={contact.id} value={contact.id!.toString()}>
+                          {contact.first_name} {contact.last_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="property_id" className="text-right">
+                    Property
+                  </Label>
+                  <Select
+                    value={formData.property_id}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, property_id: value }))}
+                  >
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue placeholder="Select property" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {properties.map((property) => (
+                        <SelectItem key={property.id} value={property.id!.toString()}>
+                          {property.name} - {property.unit_no}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="source_id" className="text-right">
+                    Source ID
+                  </Label>
+                  <Input
+                    id="source_id"
+                    type="number"
+                    value={formData.source_id}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, source_id: e.target.value }))}
+                    className="col-span-3"
+                    placeholder="Lead source ID"
+                    required
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="status_id" className="text-right">
+                    Status
+                  </Label>
+                  <Select
+                    value={formData.status_id}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, status_id: value }))}
+                  >
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">New</SelectItem>
+                      <SelectItem value="2">Contacted</SelectItem>
+                      <SelectItem value="3">Qualified</SelectItem>
+                      <SelectItem value="4">Converted</SelectItem>
+                      <SelectItem value="5">Lost</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="assigned_to" className="text-right">
+                    Assigned To
+                  </Label>
+                  <Select
+                    value={formData.assigned_to}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, assigned_to: value }))}
+                  >
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue placeholder="Select user" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {users.map((user) => (
+                        <SelectItem key={user.id} value={user.id!.toString()}>
+                          {user.username}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="notes" className="text-right">
+                    Notes
+                  </Label>
+                  <Textarea
+                    id="notes"
+                    value={formData.notes}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, notes: e.target.value }))}
+                    className="col-span-3"
+                    placeholder="Lead notes and comments"
+                    rows={3}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button type="submit" onClick={handleCreateLead} className="bg-cyan-600 hover:bg-cyan-700">
+                  Create Lead
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
       {error && (
@@ -416,26 +455,28 @@ export function LeadsManagement() {
                   <TableCell className="text-card-foreground">{getUserName(lead.assigned_to)}</TableCell>
                   <TableCell className="text-card-foreground max-w-xs truncate">{lead.notes || "No notes"}</TableCell>
                   <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => openEditDialog(lead)}>
-                          <Edit className="mr-2 h-4 w-4" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="text-destructive"
-                          onClick={() => lead.id && handleDeleteLead(lead.id)}
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    {hasRole(ROLE_RECEPTION) && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => openEditDialog(lead)}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-destructive"
+                            onClick={() => lead.id && handleDeleteLead(lead.id)}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
                   </TableCell>
                 </TableRow>
               ))
@@ -521,7 +562,8 @@ export function LeadsManagement() {
                   <SelectItem value="2">Contacted</SelectItem>
                   <SelectItem value="3">Qualified</SelectItem>
                   <SelectItem value="4">Converted</SelectItem>
-                  <SelectItem value="5">Lost</SelectItem>
+                  <SelectItem value="5">Lost
+</SelectItem>
                 </SelectContent>
               </Select>
             </div>

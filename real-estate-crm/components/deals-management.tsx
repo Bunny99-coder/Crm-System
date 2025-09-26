@@ -20,6 +20,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { MoreHorizontal, Search, Plus, Edit, Trash2, DollarSign, TrendingUp, CheckCircle, Eye } from "lucide-react"
 import { api, type Deal, type Lead, type Property } from "@/lib/api"
+import { useAuth, ROLE_SALES_AGENT, ROLE_RECEPTION } from "@/lib/auth" // Import useAuth and role constants
 
 export function DealsManagement() {
   const [deals, setDeals] = useState<Deal[]>([])
@@ -39,6 +40,8 @@ export function DealsManagement() {
     deal_amount: "",
   })
 
+  const { user, hasRole } = useAuth() // Use the useAuth hook
+
   // Load data on component mount
   useEffect(() => {
     loadAllData()
@@ -47,19 +50,27 @@ export function DealsManagement() {
   const loadAllData = async () => {
     try {
       setIsLoading(true)
-      const [dealsData, leadsData, propertiesData] = await Promise.all([
-        api.getDeals(),
-        api.getLeads(),
-        api.getProperties(),
-      ])
-      setDeals(dealsData)
-      setLeads(leadsData)
-      setProperties(propertiesData)
+      const dealsData = await api.getDeals()
+      setDeals(dealsData || [])
     } catch (err) {
-      setError("Failed to load data")
-    } finally {
-      setIsLoading(false)
+      setError("Failed to load deals")
     }
+
+    try {
+      const leadsData = await api.getLeads()
+      setLeads(leadsData || [])
+    } catch (err) {
+      setError("Failed to load leads")
+    }
+
+    try {
+      const propertiesData = await api.getProperties()
+      setProperties(propertiesData || [])
+    } catch (err) {
+      setError("Failed to load properties")
+    }
+
+    setIsLoading(false)
   }
 
   const handleCreateDeal = async () => {
@@ -406,43 +417,50 @@ Lead {lead.id} - {lead.notes ? lead.notes.substring(0, 30) : "No notes"}
                 </TableCell>
               </TableRow>
             ) : (
-              filteredDeals.map((deal) => (
-                <TableRow key={deal.id} className="hover:bg-muted/50">
-                  <TableCell className="font-medium text-card-foreground">{getLeadInfo(deal.lead_id)}</TableCell>
-                  <TableCell className="text-card-foreground">{getPropertyName(deal.property_id)}</TableCell>
-                  <TableCell>{getStageBadge(deal.stage_id)}</TableCell>
-                  <TableCell>{getStatusBadge(deal.deal_status)}</TableCell>
-                  <TableCell className="text-card-foreground font-medium">
-                    ${deal.deal_amount.toLocaleString()}
-                  </TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => (window.location.href = `/deals/${deal.id}`)}>
-                          <Eye className="mr-2 h-4 w-4" />
-                          View Details
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => openEditDialog(deal)}>
-                          <Edit className="mr-2 h-4 w-4" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="text-destructive"
-                          onClick={() => deal.id && handleDeleteDeal(deal.id)}
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))
+              filteredDeals.map((deal) => {
+                const canEditDelete = hasRole(ROLE_RECEPTION) || (user && deal.created_by === user.id);
+                return (
+                  <TableRow key={deal.id} className="hover:bg-muted/50">
+                    <TableCell className="font-medium text-card-foreground">{getLeadInfo(deal.lead_id)}</TableCell>
+                    <TableCell className="text-card-foreground">{getPropertyName(deal.property_id)}</TableCell>
+                    <TableCell>{getStageBadge(deal.stage_id)}</TableCell>
+                    <TableCell>{getStatusBadge(deal.deal_status)}</TableCell>
+                    <TableCell className="text-card-foreground font-medium">
+                      ${deal.deal_amount.toLocaleString()}
+                    </TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => (window.location.href = `/deals/${deal.id}`)}>
+                            <Eye className="mr-2 h-4 w-4" />
+                            View Details
+                          </DropdownMenuItem>
+                          {canEditDelete && (
+                            <DropdownMenuItem onClick={() => openEditDialog(deal)}>
+                              <Edit className="mr-2 h-4 w-4" />
+                              Edit
+                            </DropdownMenuItem>
+                          )}
+                          {canEditDelete && (
+                            <DropdownMenuItem
+                              className="text-destructive"
+                              onClick={() => deal.id && handleDeleteDeal(deal.id)}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             )}
           </TableBody>
         </Table>

@@ -51,7 +51,7 @@ func (r *NoteRepo) CreateNote(note *models.Note) error {
 // GetNoteByID retrieves a note by its ID
 func (r *NoteRepo) GetNoteByID(id int) (*models.Note, error) {
     query := `
-        SELECT note_id, user_id, contact_id, lead_id, deal_id, note_text, created_at, updated_at
+        SELECT note_id, user_id, contact_id, lead_id, deal_id, note_text, created_at, updated_at, deleted_at
         FROM notes
         WHERE note_id = $1 AND deleted_at IS NULL
     `

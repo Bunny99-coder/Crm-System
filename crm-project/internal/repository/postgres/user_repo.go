@@ -2,13 +2,13 @@
 package postgres
 
 import (
+	"context"
+	"database/sql"
+	"fmt" // Added for error formatting
+	"strconv"
+"errors"
 	"crm-project/internal/models"
 	"github.com/jmoiron/sqlx"
-	    "database/sql"
-			"strconv"
-			"context"
-
-
 )
 
 type UserRepo struct {
@@ -141,12 +141,43 @@ func (r *UserRepo) GetAllSalesAgents(ctx context.Context) ([]models.User, error)
 }
 
 
-// GetByUsername retrieves a single user by their username.
-// It's important to select the password_hash for comparison.
 func (r *UserRepo) GetByUsername(ctx context.Context, username string) (*models.User, error) {
 	var user models.User
-	query := `SELECT user_id, username, email, role_id, password_hash FROM users WHERE username = $1`
+	err := r.db.GetContext(ctx, &user, "SELECT user_id, username, password_hash, email, role_id, created_at, updated_at FROM users WHERE username=$1", username)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil // User not found
+		}
+		return nil, fmt.Errorf("error getting user by username: %w", err)
+	}
+	return &user, nil
+}
+
+func (r *UserRepo) GetByUsernameWithRole(ctx context.Context, username string) (*models.User, error) {
+	var user models.User
+	query := `
+		SELECT
+			u.user_id, u.username, u.password_hash, u.email, u.role_id, u.created_at, u.updated_at,
+			r.role_name
+		FROM users u
+		JOIN roles r ON u.role_id = r.role_id
+		WHERE u.username = $1
+	`
 	err := r.db.GetContext(ctx, &user, query, username)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil // User not found
+		}
+		return nil, fmt.Errorf("error getting user by username with role: %w", err)
+	}
+	return &user, nil
+}
+
+// GetByEmail retrieves a single user by their email.
+func (r *UserRepo) GetByEmail(ctx context.Context, email string) (*models.User, error) {
+	var user models.User
+	query := `SELECT user_id, username, email, role_id, password_hash FROM users WHERE email = $1`
+	err := r.db.GetContext(ctx, &user, query, email)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil // Return nil, nil for not found

@@ -96,6 +96,23 @@ func (r *TaskRepo) GetTasksByDealID(dealID int) ([]models.Task, error) {
     return tasks, nil
 }
 
+func (r *TaskRepo) GetTasksByDealIDForUser(dealID int, userID int) ([]models.Task, error) {
+    query := `
+        SELECT task_id, task_name, task_description, due_date, status, assigned_to, lead_id, deal_id, created_at, updated_at, deleted_at
+        FROM tasks
+        WHERE deal_id = $1 AND assigned_to = $2 AND deleted_at IS NULL
+        ORDER BY due_date ASC
+    `
+
+    var tasks []models.Task
+    err := r.db.Select(&tasks, query, dealID, userID)
+    if err != nil {
+        return nil, fmt.Errorf("failed to get tasks by deal ID for user: %w", err)
+    }
+
+    return tasks, nil
+}
+
 // GetAllTasks retrieves all tasks
 func (r *TaskRepo) GetAllTasks() ([]models.Task, error) {
     query := `

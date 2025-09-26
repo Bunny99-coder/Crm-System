@@ -20,6 +20,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { MoreHorizontal, Search, Plus, Edit, Trash2, Building, DollarSign, MapPin } from "lucide-react"
 import { api, type Property } from "@/lib/api"
+import { useAuth, ROLE_RECEPTION } from "@/lib/auth" // Import useAuth and role constants
 
 export function PropertiesManagement() {
   const [properties, setProperties] = useState<Property[]>([])
@@ -37,6 +38,8 @@ export function PropertiesManagement() {
     price: "",
     status: "Available" as "Available" | "Pending" | "Sold",
   })
+
+  const { hasRole } = useAuth() // Use the useAuth hook
 
   // Load properties on component mount
   useEffect(() => {
@@ -183,116 +186,118 @@ export function PropertiesManagement() {
           <h1 className="text-3xl font-bold text-balance text-foreground">Properties Management</h1>
           <p className="text-muted-foreground text-pretty">Manage your real estate property listings and inventory</p>
         </div>
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-cyan-600 hover:bg-cyan-700">
-              <Plus className="mr-2 h-4 w-4" />
-              Add Property
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Create New Property</DialogTitle>
-              <DialogDescription>Add a new property to your inventory.</DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="name" className="text-right">
-                  Name
-                </Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
-                  className="col-span-3"
-                  placeholder="Property name"
-                  required
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="site_id" className="text-right">
-                  Site ID
-                </Label>
-                <Input
-                  id="site_id"
-                  type="number"
-                  value={formData.site_id}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, site_id: e.target.value }))}
-                  className="col-span-3"
-                  placeholder="Site identifier"
-                  required
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="property_type_id" className="text-right">
-                  Type ID
-                </Label>
-                <Input
-                  id="property_type_id"
-                  type="number"
-                  value={formData.property_type_id}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, property_type_id: e.target.value }))}
-                  className="col-span-3"
-                  placeholder="Property type ID"
-                  required
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="unit_no" className="text-right">
-                  Unit No
-                </Label>
-                <Input
-                  id="unit_no"
-                  value={formData.unit_no}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, unit_no: e.target.value }))}
-                  className="col-span-3"
-                  placeholder="Unit number"
-                  required
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="price" className="text-right">
-                  Price
-                </Label>
-                <Input
-                  id="price"
-                  type="number"
-                  step="0.01"
-                  value={formData.price}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, price: e.target.value }))}
-                  className="col-span-3"
-                  placeholder="Property price"
-                  required
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="status" className="text-right">
-                  Status
-                </Label>
-                <Select
-                  value={formData.status}
-                  onValueChange={(value: "Available" | "Pending" | "Sold") =>
-                    setFormData((prev) => ({ ...prev, status: value }))
-                  }
-                >
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Available">Available</SelectItem>
-                    <SelectItem value="Pending">Pending</SelectItem>
-                    <SelectItem value="Sold">Sold</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button type="submit" onClick={handleCreateProperty} className="bg-cyan-600 hover:bg-cyan-700">
-                Create Property
+        {hasRole(ROLE_RECEPTION) && (
+          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-cyan-600 hover:bg-cyan-700">
+                <Plus className="mr-2 h-4 w-4" />
+                Add Property
               </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Create New Property</DialogTitle>
+                <DialogDescription>Add a new property to your inventory.</DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="name" className="text-right">
+                    Name
+                  </Label>
+                  <Input
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
+                    className="col-span-3"
+                    placeholder="Property name"
+                    required
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="site_id" className="text-right">
+                    Site ID
+                  </Label>
+                  <Input
+                    id="site_id"
+                    type="number"
+                    value={formData.site_id}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, site_id: e.target.value }))}
+                    className="col-span-3"
+                    placeholder="Site identifier"
+                    required
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="property_type_id" className="text-right">
+                    Type ID
+                  </Label>
+                  <Input
+                    id="property_type_id"
+                    type="number"
+                    value={formData.property_type_id}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, property_type_id: e.target.value }))}
+                    className="col-span-3"
+                    placeholder="Property type ID"
+                    required
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="unit_no" className="text-right">
+                    Unit No
+                  </Label>
+                  <Input
+                    id="unit_no"
+                    value={formData.unit_no}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, unit_no: e.target.value }))}
+                    className="col-span-3"
+                    placeholder="Unit number"
+                    required
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="price" className="text-right">
+                    Price
+                  </Label>
+                  <Input
+                    id="price"
+                    type="number"
+                    step="0.01"
+                    value={formData.price}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, price: e.target.value }))}
+                    className="col-span-3"
+                    placeholder="Property price"
+                    required
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="status" className="text-right">
+                    Status
+                  </Label>
+                  <Select
+                    value={formData.status}
+                    onValueChange={(value: "Available" | "Pending" | "Sold") =>
+                      setFormData((prev) => ({ ...prev, status: value }))
+                    }
+                  >
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Available">Available</SelectItem>
+                      <SelectItem value="Pending">Pending</SelectItem>
+                      <SelectItem value="Sold">Sold</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button type="submit" onClick={handleCreateProperty} className="bg-cyan-600 hover:bg-cyan-700">
+                  Create Property
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
       {error && (
@@ -375,26 +380,28 @@ export function PropertiesManagement() {
                   <TableCell>{getStatusBadge(property.status)}</TableCell>
                   <TableCell className="text-card-foreground">{property.site_id}</TableCell>
                   <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => openEditDialog(property)}>
-                          <Edit className="mr-2 h-4 w-4" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="text-destructive"
-                          onClick={() => property.id && handleDeleteProperty(property.id)}
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    {hasRole(ROLE_RECEPTION) && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => openEditDialog(property)}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-destructive"
+                            onClick={() => property.id && handleDeleteProperty(property.id)}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
                   </TableCell>
                 </TableRow>
               ))

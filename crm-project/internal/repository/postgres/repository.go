@@ -23,6 +23,7 @@ type TaskRepository interface {
     UpdateTask(task *models.Task) error
     DeleteTask(id int) error
     GetTasksForUser(userID int) ([]models.Task, error)
+    GetTasksByDealIDForUser(dealID int, userID int) ([]models.Task, error)
 }
 
 // CommLogRepository defines the interface for communication log data access

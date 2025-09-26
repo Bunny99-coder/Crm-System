@@ -13,24 +13,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useRouter } from "next/navigation"
+import { useAuthContext } from "@/components/auth-provider" // Import useAuthContext
 
-export function DashboardHeader() {
+export default function DashboardHeader() {
   const router = useRouter()
+  const { logout } = useAuthContext() // Get logout function from context
 
   const handleLogout = async () => {
-    try {
-      await fetch("http://localhost:8080/api/v1/auth/logout", {
-        method: "POST",
-        credentials: "include", // if using cookies
-        headers: {
-          "Content-Type": "application/json",
-        },
-      })
-      localStorage.removeItem("authToken") // remove JWT from localStorage
-      router.push("/login") // redirect to login
-    } catch (err) {
-      console.error("Logout failed", err)
-    }
+    logout() // Call the logout function from AuthContext
   }
 
   return (

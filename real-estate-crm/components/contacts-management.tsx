@@ -19,6 +19,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { MoreHorizontal, Search, Plus, Edit, Trash2, User, Mail, Phone, Eye } from "lucide-react"
 import { api, type Contact } from "@/lib/api"
+import { useAuth, ROLE_SALES_AGENT, ROLE_RECEPTION } from "@/lib/auth" // Import useAuth and role constants
 
 export function ContactsManagement() {
   const [contacts, setContacts] = useState<Contact[]>([])
@@ -34,6 +35,8 @@ export function ContactsManagement() {
     email: "",
     primary_phone: "",
   })
+
+  const { user, hasRole } = useAuth() // Use the useAuth hook
 
   // Load contacts on component mount
   useEffect(() => {
@@ -268,46 +271,53 @@ export function ContactsManagement() {
                 </TableCell>
               </TableRow>
             ) : (
-              filteredContacts.map((contact) => (
-                <TableRow key={contact.id} className="hover:bg-muted/50">
-                  <TableCell className="font-medium text-card-foreground">
-                    {contact.first_name} {contact.last_name}
-                  </TableCell>
-                  <TableCell className="text-card-foreground">{contact.email}</TableCell>
-                  <TableCell className="text-card-foreground">{contact.primary_phone}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                      Active
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => (window.location.href = `/contacts/${contact.id}`)}>
-                          <Eye className="mr-2 h-4 w-4" />
-                          View Details
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => openEditDialog(contact)}>
-                          <Edit className="mr-2 h-4 w-4" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="text-destructive"
-                          onClick={() => contact.id && handleDeleteContact(contact.id)}
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))
+              filteredContacts.map((contact) => {
+                const canEditDelete = hasRole(ROLE_RECEPTION) || (user && contact.created_by === user.id);
+                return (
+                  <TableRow key={contact.id} className="hover:bg-muted/50">
+                    <TableCell className="font-medium text-card-foreground">
+                      {contact.first_name} {contact.last_name}
+                    </TableCell>
+                    <TableCell className="text-card-foreground">{contact.email}</TableCell>
+                    <TableCell className="text-card-foreground">{contact.primary_phone}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                        Active
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => (window.location.href = `/contacts/${contact.id}`)}>
+                            <Eye className="mr-2 h-4 w-4" />
+                            View Details
+                          </DropdownMenuItem>
+                          {canEditDelete && (
+                            <DropdownMenuItem onClick={() => openEditDialog(contact)}>
+                              <Edit className="mr-2 h-4 w-4" />
+                              Edit
+                            </DropdownMenuItem>
+                          )}
+                          {canEditDelete && (
+                            <DropdownMenuItem
+                              className="text-destructive"
+                              onClick={() => contact.id && handleDeleteContact(contact.id)}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             )}
           </TableBody>
         </Table>

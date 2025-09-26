@@ -20,11 +20,14 @@ import { Textarea } from "@/components/ui/textarea"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { MoreHorizontal, Search, Plus, Edit, Trash2, CheckSquare, Clock, Calendar } from "lucide-react"
-import { api, type Task, type User as ApiUser } from "@/lib/api"
+import { api, type Task, type User } from "@/lib/api"
+import { useAuth, ROLE_RECEPTION, ROLE_SALES_AGENT } from "@/lib/auth" // Import useAuth and role constants
 
 export function TasksManagement() {
+  const { user, hasRole } = useAuth() // Use the useAuth hook
+
   const [tasks, setTasks] = useState<Task[]>([])
-  const [users, setUsers] = useState<ApiUser[]>([])
+  const [users, setUsers] = useState<User[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState("")
@@ -39,22 +42,36 @@ export function TasksManagement() {
     assigned_to: "",
   })
 
-  // Load data on component mount
+  // Load data on component mount or when user changes
   useEffect(() => {
-    loadAllData()
-  }, [])
+    if (user) {
+      loadAllData(user)
+    }
+  }, [user])
 
-  const loadAllData = async () => {
+  const loadAllData = async (currentUser: User) => {
     try {
       setIsLoading(true)
-      const [tasksData, usersData] = await Promise.all([api.getTasks(), api.getUsers()])
+      const tasksData = await api.getTasks()
       setTasks(tasksData)
-      setUsers(usersData)
     } catch (err) {
-      setError("Failed to load data")
-    } finally {
-      setIsLoading(false)
+      setError("Failed to load tasks")
     }
+
+    try {
+      if (currentUser.role_id === ROLE_SALES_AGENT) {
+        // If sales agent, only show themselves in the assigned_to dropdown
+        setUsers(currentUser ? [currentUser] : [])
+      } else {
+        // For other roles (e.g., Reception), fetch all users
+        const usersData = await api.getUsers()
+        setUsers(usersData)
+      }
+    } catch (err) {
+      setError("Failed to load users")
+    }
+
+    setIsLoading(false)
   }
 
   const handleCreateTask = async () => {
@@ -63,13 +80,13 @@ export function TasksManagement() {
         task_name: formData.task_name,
         task_description: formData.task_description,
         due_date: formData.due_date,
-        status: formData.status,
+        status: formData.status as "Pending" | "Completed", // Explicitly cast status
         assigned_to: Number.parseInt(formData.assigned_to),
       }
       await api.createTask(taskData)
       setIsCreateDialogOpen(false)
       resetForm()
-      loadAllData()
+      loadAllData(user!)
     } catch (err) {
       setError("Failed to create task")
     }
@@ -90,7 +107,7 @@ export function TasksManagement() {
       setIsEditDialogOpen(false)
       resetForm()
       setSelectedTask(null)
-      loadAllData()
+      loadAllData(user!)
     } catch (err) {
       setError("Failed to update task")
     }
@@ -101,7 +118,7 @@ export function TasksManagement() {
 
     try {
       await api.deleteTask(id)
-      loadAllData()
+      loadAllData(user!)
     } catch (err) {
       setError("Failed to delete task")
     }
@@ -116,11 +133,11 @@ export function TasksManagement() {
         task_name: task.task_name,
         task_description: task.task_description,
         due_date: task.due_date,
-        status: newStatus,
+        status: newStatus as "Pending" | "Completed", // Explicitly cast status
         assigned_to: task.assigned_to,
       }
       await api.updateTask(task.id, taskData)
-      loadAllData()
+      loadAllData(user!)
     } catch (err) {
       setError("Failed to update task status")
     }
@@ -209,110 +226,111 @@ export function TasksManagement() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div className="space-y-1">
-          <h1 className="text-3xl font-bold text-balance text-foreground">Tasks Management</h1>
-          <p className="text-muted-foreground text-pretty">Organize and track your team's tasks and deadlines</p>
-        </div>
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-cyan-600 hover:bg-cyan-700">
-              <Plus className="mr-2 h-4 w-4" />
-              Add Task
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>Create New Task</DialogTitle>
-              <DialogDescription>Add a new task to your team's workflow.</DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="task_name" className="text-right">
-                  Task Name
-                </Label>
-                <Input
-                  id="task_name"
-                  value={formData.task_name}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, task_name: e.target.value }))}
-                  className="col-span-3"
-                  placeholder="Enter task name"
-                  required
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="task_description" className="text-right">
-                  Description
-                </Label>
-                <Textarea
-                  id="task_description"
-                  value={formData.task_description}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, task_description: e.target.value }))}
-                  className="col-span-3"
-                  placeholder="Task description"
-                  rows={3}
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="due_date" className="text-right">
-                  Due Date
-                </Label>
-                <Input
-                  id="due_date"
-                  type="datetime-local"
-                  value={formData.due_date}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, due_date: e.target.value }))}
-                  className="col-span-3"
-                  required
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="assigned_to" className="text-right">
-                  Assigned To
-                </Label>
-                <Select
-                  value={formData.assigned_to}
-                  onValueChange={(value) => setFormData((prev) => ({ ...prev, assigned_to: value }))}
-                >
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select user" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {users.map((user) => (
-                      <SelectItem key={user.id} value={user.id!.toString()}>
-                        {user.username}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="status" className="text-right">
-                  Status
-                </Label>
-                <Select
-                  value={formData.status}
-                  onValueChange={(value: "Pending" | "Completed") =>
-                    setFormData((prev) => ({ ...prev, status: value }))
-                  }
-                >
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Pending">Pending</SelectItem>
-                    <SelectItem value="Completed">Completed</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button type="submit" onClick={handleCreateTask} className="bg-cyan-600 hover:bg-cyan-700">
-                Create Task
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
+                <div className="space-y-1">
+                  <h1 className="text-3xl font-bold text-balance text-foreground">Tasks Management</h1>
+                  <p className="text-muted-foreground text-pretty">Organize, assign, and track your team's tasks</p>
+                </div>
+                {hasRole(ROLE_RECEPTION) && (
+                  <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button className="bg-cyan-600 hover:bg-cyan-700">
+                        <Plus className="mr-2 h-4 w-4" />
+                        Add Task
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[500px]">
+                      <DialogHeader>
+                        <DialogTitle>Create New Task</DialogTitle>
+                        <DialogDescription>Assign a new task to a team member.</DialogDescription>
+                      </DialogHeader>
+                      <div className="grid gap-4 py-4">
+                        <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="task_name" className="text-right">
+                            Task Name
+                          </Label>
+                          <Input
+                            id="task_name"
+                            value={formData.task_name}
+                            onChange={(e) => setFormData((prev) => ({ ...prev, task_name: e.target.value }))}
+                            className="col-span-3"
+                            placeholder="Task title"
+                            required
+                          />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="task_description" className="text-right">
+                            Description
+                          </Label>
+                          <Textarea
+                            id="task_description"
+                            value={formData.task_description}
+                            onChange={(e) => setFormData((prev) => ({ ...prev, task_description: e.target.value }))}
+                            className="col-span-3"
+                            placeholder="Detailed description of the task"
+                            rows={3}
+                          />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="due_date" className="text-right">
+                            Due Date
+                          </Label>
+                          <Input
+                            id="due_date"
+                            type="date"
+                            value={formData.due_date}
+                            onChange={(e) => setFormData((prev) => ({ ...prev, due_date: e.target.value }))}
+                            className="col-span-3"
+                            required
+                          />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="status" className="text-right">
+                            Status
+                          </Label>
+                          <Select
+                            value={formData.status}
+                            onValueChange={(value: "Pending" | "Completed") =>
+                              setFormData((prev) => ({ ...prev, status: value }))
+                            }
+                          >
+                            <SelectTrigger className="col-span-3">
+                              <SelectValue placeholder="Select status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Pending">Pending</SelectItem>
+                              <SelectItem value="Completed">Completed</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="assigned_to" className="text-right">
+                            Assigned To
+                          </Label>
+                          <Select
+                            value={formData.assigned_to}
+                            onValueChange={(value) => setFormData((prev) => ({ ...prev, assigned_to: value }))}
+                          >
+                            <SelectTrigger className="col-span-3">
+                              <SelectValue placeholder="Select user" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {users.map((user) => (
+                                <SelectItem key={user.id} value={user.id!.toString()}>
+                                  {user.username}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button type="submit" onClick={handleCreateTask} className="bg-cyan-600 hover:bg-cyan-700">
+                          Create Task
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                )}      </div>
 
       {error && (
         <Alert variant="destructive">
@@ -429,30 +447,32 @@ export function TasksManagement() {
                   </TableCell>
                   <TableCell>{getStatusBadge(task.status)}</TableCell>
                   <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => openEditDialog(task)}>
-                          <Edit className="mr-2 h-4 w-4" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleToggleTaskStatus(task)}>
-                          <CheckSquare className="mr-2 h-4 w-4" />
-                          {task.status === "Pending" ? "Mark Complete" : "Mark Pending"}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="text-destructive"
-                          onClick={() => task.id && handleDeleteTask(task.id)}
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    {hasRole(ROLE_RECEPTION) && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => openEditDialog(task)}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleToggleTaskStatus(task)}>
+                            <CheckSquare className="mr-2 h-4 w-4" />
+                            {task.status === "Pending" ? "Mark Complete" : "Mark Pending"}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-destructive"
+                            onClick={() => task.id && handleDeleteTask(task.id)}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
                   </TableCell>
                 </TableRow>
               ))
