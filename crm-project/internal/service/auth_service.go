@@ -38,6 +38,8 @@ func (s *AuthService) LoginUser(ctx context.Context, username, password string) 
 		return "", 0, errors.New("invalid credentials")
 	}
 
+	s.logger.Info("user found, checking password", "user_id", user.ID, "username", user.Username, "password_hash", user.PasswordHash)
+
 	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password))
 	if err != nil {
 		return "", 0, errors.New("invalid credentials")

@@ -133,6 +133,17 @@ func (s *ReportService) GetEmployeeSalesReport(ctx context.Context) ([]postgres.
 
 
 func (s *ReportService) GetSourceSalesReport(ctx context.Context) ([]postgres.SourceSalesReportRow, error) {
+	claims, ok := util.GetClaimsFromContext(ctx)
+	if !ok {
+		return nil, errors.New("could not retrieve user claims from context")
+	}
+
+	// --- PERMISSION CHECK ---
+	if claims.RoleID != s.cfg.Roles.ReceptionID {
+		s.logger.Warn("Permission denied for GetSourceSalesReport", "user_id", claims.UserID, "role_id", claims.RoleID)
+		return nil, fmt.Errorf("forbidden: only managers can generate this report")
+	}
+
 	s.logger.Info("generating source sales report")
 	return s.dealRepo.GetSourceSalesReport(ctx)
 }
@@ -145,4 +156,50 @@ func (s *ReportService) GetMySalesReport(ctx context.Context) ([]postgres.Employ
 
 	s.logger.Info("generating personal sales report for user", "user_id", claims.UserID)
 	return s.dealRepo.GetEmployeeSalesReportForUser(ctx, claims.UserID)
+}
+
+func (s *ReportService) GetDealsPipelineReport(ctx context.Context) (*models.DealsPipelineReport, error) {
+	claims, ok := util.GetClaimsFromContext(ctx)
+	if !ok {
+		return nil, errors.New("could not retrieve user claims from context")
+	}
+
+	// --- PERMISSION CHECK ---
+	if claims.RoleID != s.cfg.Roles.ReceptionID {
+		s.logger.Warn("Permission denied for GetDealsPipelineReport", "user_id", claims.UserID, "role_id", claims.RoleID)
+		return nil, fmt.Errorf("forbidden: only managers can generate this report")
+	}
+
+	s.logger.Info("generating deals pipeline report")
+	// Call the repository method to get the raw data
+	rawReport, err := s.dealRepo.GetDealsPipelineReport(ctx)
+	if err != nil {
+		s.logger.Error("failed to get deals pipeline report from repository", "error", err)
+		return nil, err
+	}
+
+	// Process raw data into the desired report format
+	report := &models.DealsPipelineReport{
+		Rows: make([]models.DealsPipelineReportRow, len(rawReport)),
+	}
+	var totalDealCount int
+	var totalDealAmount float64
+
+	for i, row := range rawReport {
+		report.Rows[i] = models.DealsPipelineReportRow{
+			StageName:   row.StageName,
+			DealCount:   row.DealCount,
+			TotalAmount: row.TotalAmount,
+		}
+		totalDealCount += row.DealCount
+		totalDealAmount += row.TotalAmount
+	}
+
+	report.Total = models.DealsPipelineSummary{
+		TotalDealCount:   totalDealCount,
+		TotalDealAmount: totalDealAmount,
+	}
+
+	s.logger.Info("successfully generated deals pipeline report", "row_count", len(report.Rows))
+	return report, nil
 }

@@ -173,7 +173,6 @@ export function useAuth() {
     authManager.clearAuth()
     setIsAuthenticated(false)
     setUser(null)
-
     
     router.push("/login")
   }

@@ -1,0 +1,64 @@
+{"time":"2025-09-26T20:29:37.5645187+03:00","level":"INFO","msg":"Test log to confirm logging is working"}
+{"time":"2025-09-26T20:29:37.5650476+03:00","level":"INFO","msg":"loading configuration","path":"config.yml"}
+{"time":"2025-09-26T20:29:37.5655833+03:00","level":"INFO","msg":"Database URL from config","url":"postgres://crm_user:postgres@localhost:5432/crm_db?sslmode=disable"}
+{"time":"2025-09-26T20:29:37.6411617+03:00","level":"INFO","msg":"configuration loaded successfully","SalesAgentRoleID":1,"ReceptionRoleID":2}
+{"time":"2025-09-26T20:29:37.6411617+03:00","level":"INFO","msg":"configuration loaded successfully"}
+{"time":"2025-09-26T20:29:37.6947687+03:00","level":"INFO","msg":"successfully connected to the database!"}
+{"time":"2025-09-26T20:29:37.6947687+03:00","level":"INFO","msg":"--- Registered Routes ---"}
+POST 	 /api/v1/auth/login
+POST 	 /api/v1/auth/register
+POST 	 /api/v1/comm-logs
+PUT 	 /api/v1/comm-logs/{logId}
+DELETE 	 /api/v1/comm-logs/{logId}
+GET 	 /api/v1/comm-logs/{logId}
+GET 	 /api/v1/contacts
+POST 	 /api/v1/contacts
+GET 	 /api/v1/contacts/{contactId}
+PUT 	 /api/v1/contacts/{contactId}
+DELETE 	 /api/v1/contacts/{contactId}
+GET 	 /api/v1/contacts/{contactId}/comm-logs
+GET 	 /api/v1/deals
+POST 	 /api/v1/deals
+GET 	 /api/v1/deals/{id}
+PUT 	 /api/v1/deals/{id}
+DELETE 	 /api/v1/deals/{id}
+GET 	 /api/v1/events
+POST 	 /api/v1/events
+DELETE 	 /api/v1/events/{eventId}
+GET 	 /api/v1/events/{eventId}
+PUT 	 /api/v1/events/{eventId}
+GET 	 /api/v1/leads
+POST 	 /api/v1/leads
+GET 	 /api/v1/leads/{id}
+PUT 	 /api/v1/leads/{id}
+DELETE 	 /api/v1/leads/{id}
+GET 	 /api/v1/notes
+POST 	 /api/v1/notes
+GET 	 /api/v1/notes/{noteId}
+PUT 	 /api/v1/notes/{noteId}
+DELETE 	 /api/v1/notes/{noteId}
+GET 	 /api/v1/properties
+POST 	 /api/v1/properties
+PUT 	 /api/v1/properties/{propertyId}
+DELETE 	 /api/v1/properties/{propertyId}
+GET 	 /api/v1/properties/{propertyId}
+GET 	 /api/v1/reports/deals-pipeline
+GET 	 /api/v1/reports/employee-leads
+GET 	 /api/v1/reports/employee-sales
+GET 	 /api/v1/reports/my-sales
+GET 	 /api/v1/reports/source-leads
+GET 	 /api/v1/reports/source-sales
+GET 	 /api/v1/tasks
+POST 	 /api/v1/tasks
+DELETE 	 /api/v1/tasks/{id}
+GET 	 /api/v1/tasks/{id}
+PUT 	 /api/v1/tasks/{id}
+POST 	 /api/v1/users
+GET 	 /api/v1/users
+GET 	 /api/v1/users/{userId}
+GET 	 /api/v1/users/{userId}/events
+GET 	 /api/v1/users/{userId}/notes
+GET 	 /reports/my-sales
+{"time":"2025-09-26T20:29:37.6947687+03:00","level":"INFO","msg":"-------------------------"}
+{"time":"2025-09-26T20:29:37.6953043+03:00","level":"INFO","msg":"server starting","port":"127.0.0.1:8081"}
+{"time":"2025-09-26T20:29:37.6953043+03:00","level":"ERROR","msg":"server listen and serve error","error":"listen tcp 127.0.0.1:8081: bind: Only one usage of each socket address (protocol/network address/port) is normally permitted."}

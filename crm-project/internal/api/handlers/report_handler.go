@@ -76,3 +76,15 @@ func (h *ReportHandler) GetMySalesReport(w http.ResponseWriter, r *http.Request)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(report)
 }
+
+func (h *ReportHandler) GetDealsPipelineReport(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	report, err := h.service.GetDealsPipelineReport(ctx)
+	if err != nil {
+		h.logger.Error("failed to generate deals pipeline report", "error", err)
+		http.Error(w, "Failed to generate report", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(report)
+}

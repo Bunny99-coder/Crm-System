@@ -223,130 +223,131 @@ export function DealsManagement() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="space-y-1">
-          <h1 className="text-3xl font-bold text-balance text-foreground">Deals Management</h1>
-          <p className="text-muted-foreground text-pretty">Track and manage your sales deals and revenue pipeline</p>
-        </div>
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-cyan-600 hover:bg-cyan-700">
-              <Plus className="mr-2 h-4 w-4" />
-              Add Deal
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>Create New Deal</DialogTitle>
-              <DialogDescription>Add a new deal to your sales pipeline.</DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="lead_id" className="text-right">
-                  Lead
-                </Label>
-                <Select
-                  value={formData.lead_id}
-                  onValueChange={(value) => setFormData((prev) => ({ ...prev, lead_id: value }))}
-                >
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select lead" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {leads.map((lead) => (
-                      <SelectItem key={lead.id} value={lead.id!.toString()}>
-Lead {lead.id} - {lead.notes ? lead.notes.substring(0, 30) : "No notes"}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <h1 className="text-3xl font-bold text-balance text-foreground">Deals Management</h1>
+                <p className="text-muted-foreground text-pretty">Track and manage your sales deals and revenue pipeline</p>
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="property_id" className="text-right">
-                  Property
-                </Label>
-                <Select
-                  value={formData.property_id}
-                  onValueChange={(value) => setFormData((prev) => ({ ...prev, property_id: value }))}
-                >
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select property" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {properties.map((property) => (
-                      <SelectItem key={property.id} value={property.id!.toString()}>
-                        {property.name} - {property.unit_no}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="stage_id" className="text-right">
-                  Stage
-                </Label>
-                <Select
-                  value={formData.stage_id}
-                  onValueChange={(value) => setFormData((prev) => ({ ...prev, stage_id: value }))}
-                >
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select stage" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1">Initial Contact</SelectItem>
-                    <SelectItem value="2">Qualification</SelectItem>
-                    <SelectItem value="3">Proposal</SelectItem>
-                    <SelectItem value="4">Negotiation</SelectItem>
-                    <SelectItem value="5">Closing</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="deal_status" className="text-right">
-                  Status
-                </Label>
-                <Select
-                  value={formData.deal_status}
-                  onValueChange={(value: "Pending" | "Closed-Won" | "Closed-Lost") =>
-                    setFormData((prev) => ({ ...prev, deal_status: value }))
-                  }
-                >
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Pending">Pending</SelectItem>
-                    <SelectItem value="Closed-Won">Closed-Won</SelectItem>
-                    <SelectItem value="Closed-Lost">Closed-Lost</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="deal_amount" className="text-right">
-                  Amount
-                </Label>
-                <Input
-                  id="deal_amount"
-                  type="number"
-                  step="0.01"
-                  value={formData.deal_amount}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, deal_amount: e.target.value }))}
-                  className="col-span-3"
-                  placeholder="Deal amount"
-                  required
-                />
-              </div>
+              {(hasRole(ROLE_RECEPTION) || hasRole(ROLE_SALES_AGENT)) && (
+                <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button className="bg-cyan-600 hover:bg-cyan-700">
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add Deal
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[500px]">
+                    <DialogHeader>
+                      <DialogTitle>Create New Deal</DialogTitle>
+                      <DialogDescription>Add a new deal to your sales pipeline.</DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="lead_id" className="text-right">
+                          Lead
+                        </Label>
+                        <Select
+                          value={formData.lead_id}
+                          onValueChange={(value) => setFormData((prev) => ({ ...prev, lead_id: value }))}
+                        >
+                          <SelectTrigger className="col-span-3">
+                            <SelectValue placeholder="Select lead" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {leads.map((lead) => (
+                              <SelectItem key={lead.id} value={lead.id!.toString()}>
+      Lead {lead.id} - {lead.notes ? lead.notes.substring(0, 30) : "No notes"}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="property_id" className="text-right">
+                          Property
+                        </Label>
+                        <Select
+                          value={formData.property_id}
+                          onValueChange={(value) => setFormData((prev) => ({ ...prev, property_id: value }))}
+                        >
+                          <SelectTrigger className="col-span-3">
+                            <SelectValue placeholder="Select property" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {properties.map((property) => (
+                              <SelectItem key={property.id} value={property.id!.toString()}>
+                                {property.name} - {property.unit_no}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="stage_id" className="text-right">
+                          Stage
+                        </Label>
+                        <Select
+                          value={formData.stage_id}
+                          onValueChange={(value) => setFormData((prev) => ({ ...prev, stage_id: value }))}
+                        >
+                          <SelectTrigger className="col-span-3">
+                            <SelectValue placeholder="Select stage" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="1">Initial Contact</SelectItem>
+                            <SelectItem value="2">Qualification</SelectItem>
+                            <SelectItem value="3">Proposal</SelectItem>
+                            <SelectItem value="4">Negotiation</SelectItem>
+                            <SelectItem value="5">Closing</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="deal_status" className="text-right">
+                          Status
+                        </Label>
+                        <Select
+                          value={formData.deal_status}
+                          onValueChange={(value: "Pending" | "Closed-Won" | "Closed-Lost") =>
+                            setFormData((prev) => ({ ...prev, deal_status: value }))
+                          }
+                        >
+                          <SelectTrigger className="col-span-3">
+                            <SelectValue placeholder="Select status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Pending">Pending</SelectItem>
+                            <SelectItem value="Closed-Won">Closed-Won</SelectItem>
+                            <SelectItem value="Closed-Lost">Closed-Lost</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="deal_amount" className="text-right">
+                          Amount
+                        </Label>
+                        <Input
+                          id="deal_amount"
+                          type="number"
+                          step="0.01"
+                          value={formData.deal_amount}
+                          onChange={(e) => setFormData((prev) => ({ ...prev, deal_amount: e.target.value }))}
+                          className="col-span-3"
+                          placeholder="Deal amount"
+                          required
+                        />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button type="submit" onClick={handleCreateDeal} className="bg-cyan-600 hover:bg-cyan-700">
+                        Create Deal
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              )}
             </div>
-            <DialogFooter>
-              <Button type="submit" onClick={handleCreateDeal} className="bg-cyan-600 hover:bg-cyan-700">
-                Create Deal
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
-
       {error && (
         <Alert variant="destructive">
           <AlertDescription>{error}</AlertDescription>

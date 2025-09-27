@@ -110,10 +110,10 @@ export interface EmployeeSalesReportRow {
   total_sales_amount: number
 }
 
-export interface DealsPipelineReport {
+export interface DealsPipelineReportRow {
   stage_name: string
   deal_count: number
-  total_value: number
+  total_amount: number
   avg_days_in_stage: number
 }
 
@@ -520,7 +520,7 @@ createNoteForDeal(dealId: number, note: { content: string }) {
 
   getMySalesReport() { return this.request<EmployeeSalesReportRow[]>("/reports/my-sales") }
 
-  getDealsPipelineReport(period: string) { return this.request<DealsPipelineReport[]>(`/reports/deals-pipeline?period=${period}`) }
+  getDealsPipelineReport(period: string) { return this.request<DealsPipelineReportRow[]>(`/reports/deals-pipeline?period=${period}`) }
 }
 
 export const api = new ApiClient()

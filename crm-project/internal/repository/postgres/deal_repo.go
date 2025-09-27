@@ -18,9 +18,9 @@ func NewDealRepo(db *sqlx.DB) *DealRepo {
 
 func (r *DealRepo) Create(ctx context.Context,d models.Deal) (int, error) {
 	var newID int
-	query := `INSERT INTO deals (lead_id, property_id, stage_id, deal_status, deal_amount, closing_date, notes)
-			  VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING deal_id`
-	err := r.db.QueryRowxContext(ctx,query, d.LeadID, d.PropertyID, d.StageID, d.DealStatus, d.DealAmount, d.ClosingDate, d.Notes).Scan(&newID)
+	query := `INSERT INTO deals (lead_id, property_id, stage_id, deal_status, deal_amount, closing_date, notes, created_by)
+			  VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING deal_id`
+	err := r.db.QueryRowxContext(ctx,query, d.LeadID, d.PropertyID, d.StageID, d.DealStatus, d.DealAmount, d.ClosingDate, d.Notes, d.CreatedBy).Scan(&newID)
 	return newID, err
 }
 
@@ -108,8 +108,7 @@ func (r *DealRepo) GetEmployeeSalesReport(ctx context.Context) ([]EmployeeSalesR
 			leads l ON d.lead_id = l.lead_id
 		JOIN
 			users u ON l.assigned_to = u.user_id
-		WHERE
-			d.deal_status = 'Closed-Won' -- Only count successful deals
+
 		GROUP BY
 			u.username
 		ORDER BY
@@ -168,8 +167,7 @@ func (r *DealRepo) GetSourceSalesReport(ctx context.Context) ([]SourceSalesRepor
 			leads l ON d.lead_id = l.lead_id
 		JOIN
 			lead_sources ls ON l.source_id = ls.source_id
-		WHERE
-			d.deal_status = 'Closed-Won'
+
 		GROUP BY
 			ls.name
 		ORDER BY
@@ -186,4 +184,32 @@ func (r *LeadRepo) GetAllForUser(ctx context.Context, userID int) ([]models.Lead
 	query := `SELECT * FROM leads WHERE assigned_to = $1 ORDER BY created_at DESC`
 	err := r.db.SelectContext(ctx, &leads, query, userID)
 	return leads, err
+}
+
+// DealsPipelineReportRow represents a row in the deals pipeline report.
+type DealsPipelineReportRow struct {
+	StageName   string  `db:"stage_name" json:"stage_name"`
+	DealCount   int     `db:"deal_count" json:"deal_count"`
+	TotalAmount float64 `db:"total_amount" json:"total_amount"`
+}
+
+// GetDealsPipelineReport aggregates deal data by stage for a pipeline report.
+func (r *DealRepo) GetDealsPipelineReport(ctx context.Context) ([]DealsPipelineReportRow, error) {
+	var reportRows []DealsPipelineReportRow
+	query := `
+		SELECT
+			ds.name AS stage_name,
+			COUNT(d.deal_id) AS deal_count,
+			COALESCE(SUM(d.deal_amount), 0) AS total_amount
+		FROM
+			deals d
+		JOIN
+			deal_stages ds ON d.stage_id = ds.stage_id
+		GROUP BY
+			ds.name, ds.stage_id
+		ORDER BY
+			ds.stage_id
+	`
+	err := r.db.SelectContext(ctx, &reportRows, query)
+	return reportRows, err
 }

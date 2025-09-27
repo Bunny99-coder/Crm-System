@@ -131,7 +131,7 @@ export function ReportsCharts({
   const pipelineData = dealsPipelineReport.map((row) => ({
     stage: row.stage_name,
     deals: row.deal_count,
-    value: row.total_value / 1000,
+    value: (row.total_value ?? 0) / 1000,
     avgDays: row.avg_days_in_stage,
   }))
 

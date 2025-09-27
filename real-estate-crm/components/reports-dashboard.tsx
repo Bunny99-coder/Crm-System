@@ -45,7 +45,7 @@ import { useAuth, ROLE_RECEPTION, ROLE_SALES_AGENT } from "@/lib/auth";
 import { addDays, format, subDays } from "date-fns";
 import dynamic from "next/dynamic";
 import { useState, useEffect } from "react";
-import { api, DealsPipelineReport, EmployeeLeadReport, EmployeeSalesReportRow, SourceLeadReportRow, SourceSalesReportRow } from "@/lib/api";
+import { api, DealsPipelineReportRow, EmployeeLeadReport, EmployeeSalesReportRow, SourceLeadReportRow, SourceSalesReportRow } from "@/lib/api";
 import { DateRange } from "react-day-picker";
 import { z } from "zod";
 import { ResponsiveContainer, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Bar, PieChart, Pie, Cell, PieLabelRenderProps } from "recharts";
@@ -79,7 +79,7 @@ export function ReportsDashboard() {
   const [employeeSalesReport, setEmployeeSalesReport] = useState<EmployeeSalesReportRow[]>([])
   const [sourceLeadReport, setSourceLeadReport] = useState<SourceLeadReportRow[]>([])
   const [sourceSalesReport, setSourceSalesReport] = useState<SourceSalesReportRow[]>([])
-  const [dealsPipelineReport, setDealsPipelineReport] = useState<DealsPipelineReport[]>([])
+  const [dealsPipelineReport, setDealsPipelineReport] = useState<DealsPipelineReportRow[]>([])
 
   const { user, hasRole, loading: isAuthLoading } = useAuth() // Destructure loading from useAuth
 
@@ -175,17 +175,19 @@ export function ReportsDashboard() {
     await loadReportsData()
   }
 
-  const leadsByEmployeeData = employeeLeadReport?.rows.map((row) => ({
+  const leadsByEmployeeData = (employeeLeadReport?.rows || []).map((row) => ({
     name: row.employee_name,
     new: row.counts.new,
     qualified: row.counts.qualified,
     converted: row.counts.converted,
-  })) || []
-
-  const salesBySourceData = sourceSalesReport.map((row) => ({
-    name: row.source_name,
-    value: row.total_sales_amount,
   }))
+
+  const salesBySourceData = sourceSalesReport
+    .filter(row => row.source_name)
+    .map((row) => ({
+      name: row.source_name,
+      value: row.total_sales_amount,
+    }))
 
   const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042"];
 
@@ -233,10 +235,10 @@ const employeeLeadChartConfig: ChartConfig = {
 
 
 
-  const pipelineData = dealsPipelineReport.map((row) => ({
+  const pipelineData = (dealsPipelineReport?.rows || []).map((row) => ({
     stage: row.stage_name,
     deals: row.deal_count,
-    value: row.total_value / 1000,
+    value: (row.total_amount ?? 0) / 1000,
     avgDays: row.avg_days_in_stage,
   }))
 
@@ -367,6 +369,7 @@ const employeeLeadChartConfig: ChartConfig = {
                 <CardDescription>Lead conversion by team member</CardDescription>
               </CardHeader>
               <CardContent>
+              
                 <ChartContainer config={employeeLeadChartConfig} className="aspect-video h-[300px]">
                   <BarChart data={leadsByEmployeeData}>
                     <CartesianGrid strokeDasharray="3 3" />

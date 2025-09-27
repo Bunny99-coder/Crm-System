@@ -1,10 +1,15 @@
 import { useState, useEffect, useContext, createContext } from 'react';
+import { api } from '../lib/api'; // Import the API client
 
 export const ROLE_RECEPTION = 'reception';
 export const ROLE_SALES_AGENT = 'sales_agent';
 
+// Define role IDs based on your backend configuration
+export const ROLE_ID_RECEPTION = 1; // Assuming 1 for Receptionist
+export const ROLE_ID_SALES_AGENT = 2; // Assuming 2 for Sales Agent
+
 interface AuthContextType {
-  user: { id: string; name: string; roles: string[] } | null;
+  user: { id: number; name: string; roles: string[]; role_id: number } | null; // Add role_id
   hasRole: (role: string) => boolean;
   isLoading: boolean;
   login: (username: string, password: string) => Promise<void>;
@@ -32,16 +37,34 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const login = async (username: string, password: string) => {
     setIsLoading(true);
-    // Simulate API call
-    return new Promise<void>((resolve) => {
-      setTimeout(() => {
-        const mockUser = { id: '1', name: username, roles: [ROLE_RECEPTION] }; // Default to reception for testing
-        localStorage.setItem('user', JSON.stringify(mockUser));
-        setUser(mockUser);
-        setIsLoading(false);
-        resolve();
-      }, 1000);
-    });
+    try {
+      const response = await api.login(username, password);
+      const userRoles: string[] = [];
+      let roleId: number = 0;
+
+      if (response.user.role_id === ROLE_ID_RECEPTION) {
+        userRoles.push(ROLE_RECEPTION);
+        roleId = ROLE_ID_RECEPTION;
+      } else if (response.user.role_id === ROLE_ID_SALES_AGENT) {
+        userRoles.push(ROLE_SALES_AGENT);
+        roleId = ROLE_ID_SALES_AGENT;
+      }
+
+      const authenticatedUser = {
+        id: response.user.id,
+        name: response.user.username,
+        roles: userRoles,
+        role_id: roleId,
+      };
+      localStorage.setItem('user', JSON.stringify(authenticatedUser));
+      setUser(authenticatedUser);
+    } catch (error) {
+      console.error("Login failed:", error);
+      logout(); // Clear any partial auth state
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const logout = () => {

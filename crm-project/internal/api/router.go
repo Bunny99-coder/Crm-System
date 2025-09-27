@@ -104,6 +104,7 @@ func NewRouter(
 				r.Get("/reports/source-leads", reportHandler.GetSourceLeadReport)
 				r.Get("/reports/source-sales", reportHandler.GetSourceSalesReport)
 				r.Get("/reports/my-sales", reportHandler.GetMySalesReport)
+				r.Get("/reports/deals-pipeline", reportHandler.GetDealsPipelineReport)
 			})
 		})
 
