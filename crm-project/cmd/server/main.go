@@ -14,8 +14,8 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
-    "github.com/go-chi/chi/v5" // <-- Make sure chi is imported here
-"fmt"
+	"fmt"
+	"github.com/go-chi/chi/v5"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/jmoiron/sqlx"
 )
@@ -70,6 +70,7 @@ func main() {
 	commLogService := service.NewCommLogService(commLogRepo) // Corrected to match service constructor
 	noteService := service.NewNoteService(noteRepo)
 	eventService := service.NewEventService(eventRepo)
+	tempService := service.NewTempService(userRepo, cfg, logger)
 	// Handler Layer
 
 
@@ -85,7 +86,9 @@ func main() {
 taskHandler := handlers.NewTaskHandler(taskService)	
 	commLogHandler := handlers.NewCommLogHandler(commLogService) // Corrected to match handler constructor
 noteHandler := handlers.NewNoteHandler(noteService)
-eventHandler := handlers.NewEventHandler(eventService)	// Router
+eventHandler := handlers.NewEventHandler(eventService)
+	tempHandler := handlers.NewTempHandler(tempService, logger)
+	// Router
 	router := api.NewRouter(
 		cfg, // Pass the entire config object
 		cfg.Auth.JWTSecret,
@@ -100,6 +103,7 @@ eventHandler := handlers.NewEventHandler(eventService)	// Router
 		commLogHandler,
 		noteHandler,
 		eventHandler,
+		tempHandler,
 	)
 
 	// --- DATA MIGRATION ---

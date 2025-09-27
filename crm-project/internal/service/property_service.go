@@ -38,7 +38,25 @@ func (s *PropertyService) CreateProperty(ctx context.Context, p models.Property)
 	if p.Name == "" || p.Price <= 0 || p.SiteID <= 0 || p.PropertyTypeID <= 0 {
 		return 0, errors.New("name, price, site_id, and property_type_id are required fields")
 	}
-	// In a real app, you would also validate that site_id and property_type_id exist.
+
+	// Validate that site_id exists.
+	siteExists, err := s.repo.SiteExists(ctx, p.SiteID)
+	if err != nil {
+		return 0, fmt.Errorf("error validating site: %w", err)
+	}
+	if !siteExists {
+		return 0, fmt.Errorf("site with ID %d does not exist", p.SiteID)
+	}
+
+	// Validate that property_type_id exists.
+	propertyTypeExists, err := s.repo.PropertyTypeExists(ctx, p.PropertyTypeID)
+	if err != nil {
+		return 0, fmt.Errorf("error validating property type: %w", err)
+	}
+	if !propertyTypeExists {
+		return 0, fmt.Errorf("property type with ID %d does not exist", p.PropertyTypeID)
+	}
+
 	return s.repo.Create(ctx, p)
 }
 
@@ -79,6 +97,24 @@ func (s *PropertyService) UpdateProperty(ctx context.Context, id int, p models.P
 	p.ID = id
 	if p.Name == "" || p.Price <= 0 || p.SiteID <= 0 || p.PropertyTypeID <= 0 {
 		return errors.New("name, price, site_id, and property_type_id are required fields")
+	}
+
+	// Validate that site_id exists.
+	siteExists, err := s.repo.SiteExists(ctx, p.SiteID)
+	if err != nil {
+		return fmt.Errorf("error validating site: %w", err)
+	}
+	if !siteExists {
+		return fmt.Errorf("site with ID %d does not exist", p.SiteID)
+	}
+
+	// Validate that property_type_id exists.
+	propertyTypeExists, err := s.repo.PropertyTypeExists(ctx, p.PropertyTypeID)
+	if err != nil {
+		return fmt.Errorf("error validating property type: %w", err)
+	}
+	if !propertyTypeExists {
+		return fmt.Errorf("property type with ID %d does not exist", p.PropertyTypeID)
 	}
 
 	err = s.repo.Update(ctx, p)

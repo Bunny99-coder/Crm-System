@@ -56,8 +56,9 @@ func (h *PropertyHandler) GetAllProperties(w http.ResponseWriter, r *http.Reques
 
 func (h *PropertyHandler) GetPropertyByID(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	id, err := strconv.Atoi(chi.URLParam(r, "id"))
+	id, err := strconv.Atoi(chi.URLParam(r, "propertyId"))
 	if err != nil {
+		h.logger.Error("invalid property ID format", "id_param", chi.URLParam(r, "propertyId"), "error", err)
 		http.Error(w, "Invalid property ID", http.StatusBadRequest)
 		return
 	}
@@ -75,9 +76,11 @@ func (h *PropertyHandler) GetPropertyByID(w http.ResponseWriter, r *http.Request
 // Replace the UpdateProperty function in property_handler.go with this:
 func (h *PropertyHandler) UpdateProperty(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	idStr := chi.URLParam(r, "propertyId") // <-- THE FIX
+	idStr := chi.URLParam(r, "propertyId")
+	h.logger.Debug("UpdateProperty called", "id_param", idStr)
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
+		h.logger.Error("invalid property ID format for update", "id_param", idStr, "error", err)
 		http.Error(w, "Invalid property ID format", http.StatusBadRequest)
 		return
 	}
@@ -100,9 +103,11 @@ func (h *PropertyHandler) UpdateProperty(w http.ResponseWriter, r *http.Request)
 // Replace the DeleteProperty function in property_handler.go with this:
 func (h *PropertyHandler) DeleteProperty(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	idStr := chi.URLParam(r, "propertyId") // <-- THE FIX
+	idStr := chi.URLParam(r, "propertyId")
+	h.logger.Debug("DeleteProperty called", "id_param", idStr)
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
+		h.logger.Error("invalid property ID format for delete", "id_param", idStr, "error", err)
 		http.Error(w, "Invalid property ID format", http.StatusBadRequest)
 		return
 	}

@@ -95,6 +95,7 @@ export function PropertiesManagement() {
       setSelectedProperty(null)
       loadProperties()
     } catch (err) {
+      console.error("Error updating property:", err)
       setError("Failed to update property")
     }
   }
@@ -106,6 +107,7 @@ export function PropertiesManagement() {
       await api.deleteProperty(id)
       loadProperties()
     } catch (err) {
+      console.error("Error deleting property:", err)
       setError("Failed to delete property")
     }
   }

@@ -172,6 +172,7 @@ export interface CommLog {
 
 class ApiClient {
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    console.log('Requesting endpoint:', endpoint, 'with options:', options);
     console.log("API_BASE_URL:", API_BASE_URL)
     const url = `${API_BASE_URL}${endpoint}`
     console.log("Constructed URL:", url)
@@ -374,7 +375,13 @@ createNoteForDeal(dealId: number, note: { content: string }) {
   getUserById(id: number) { return this.request<User>(`/users/${id}`) }
 
   // ========== Leads ==========
-  getLeads() { return this.request<Lead[]>("/leads") }
+  async getLeads(assignedToUserId?: number): Promise<Lead[]> {
+    let url = "/leads"
+    if (assignedToUserId) {
+      url += `?assigned_to=${assignedToUserId}`
+    }
+    return this.request<Lead[]>(url)
+  }
   getLeadById(id: number) { return this.request<Lead>(`/leads/${id}`) }
   createLead(lead: Omit<Lead, "id">) {
     return this.request<Lead>("/leads", {

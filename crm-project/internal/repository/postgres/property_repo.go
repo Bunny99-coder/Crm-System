@@ -93,6 +93,28 @@ func (r *PropertyRepo) Delete(ctx context.Context, id int) error {
 	return nil
 }
 
+// SiteExists checks if a site with the given ID exists.
+func (r *PropertyRepo) SiteExists(ctx context.Context, siteID int) (bool, error) {
+	var exists bool
+	query := `SELECT EXISTS(SELECT 1 FROM sites WHERE site_id = $1)`
+	err := r.db.GetContext(ctx, &exists, query, siteID)
+	if err != nil {
+		return false, err
+	}
+	return exists, nil
+}
+
+// PropertyTypeExists checks if a property type with the given ID exists.
+func (r *PropertyRepo) PropertyTypeExists(ctx context.Context, propertyTypeID int) (bool, error) {
+	var exists bool
+	query := `SELECT EXISTS(SELECT 1 FROM property_types WHERE property_type_id = $1)`
+	err := r.db.GetContext(ctx, &exists, query, propertyTypeID)
+	if err != nil {
+		return false, err
+	}
+	return exists, nil
+}
+
 // in property_repo.go
 
 // IsPropertyInOpenLeadOrDeal checks if a property is already part of an active sales process.

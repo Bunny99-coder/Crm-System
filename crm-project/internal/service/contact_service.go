@@ -30,6 +30,13 @@ func (s *ContactService) CreateContact(ctx context.Context, contact models.Conta
 		return 0, errors.New("could not retrieve user claims from context")
 	}
 
+	// --- PERMISSION CHECK ---
+	// Only Reception can create contacts.
+	if claims.RoleID != s.cfg.Roles.ReceptionID {
+		s.logger.Warn("Permission denied for CreateContact", "user_id", claims.UserID, "role_id", claims.RoleID)
+		return 0, fmt.Errorf("forbidden: only receptionists can create contacts")
+	}
+
 	// Set the creator of the contact to the currently logged-in user's ID.
 	contact.CreatedBy = &claims.UserID
 

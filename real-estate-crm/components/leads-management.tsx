@@ -56,11 +56,20 @@ export function LeadsManagement() {
   }, [user])
 
   const loadAllData = async (currentUser: User) => {
+    console.log("loadAllData called for user:", currentUser.username, "role:", currentUser.role_id)
     try {
       setIsLoading(true)
-      const leadsData = await api.getLeads()
+      let leadsData: Lead[]
+      if (currentUser.role_id === ROLE_SALES_AGENT) {
+        console.log("Fetching leads for sales agent, assigned to:", currentUser.id)
+        leadsData = await api.getLeads(currentUser.id)
+      } else {
+        console.log("Fetching all leads for non-sales agent role.")
+        leadsData = await api.getLeads()
+      }
       setLeads(leadsData)
     } catch (err) {
+      console.error("Error loading leads:", err)
       setError("Failed to load leads")
     }
 
@@ -104,18 +113,20 @@ export function LeadsManagement() {
         assigned_to: Number.parseInt(formData.assigned_to),
         notes: formData.notes,
       }
+      console.log("Attempting to create lead with data:", JSON.stringify(leadData, null, 2))
       await api.createLead(leadData)
       setIsCreateDialogOpen(false)
       resetForm()
+      loadAllData(user!)
         toast({
           title: 'Lead created',
           description: 'The new lead has been successfully added.',
         });
-      } catch (error) {
+      } catch (error: any) {
         console.error('Failed to create lead:', error);
         toast({
           title: 'Error',
-          description: 'Failed to create lead. Please try again.',
+          description: `Failed to create lead: ${error.message || 'Unknown error'}`,
           variant: 'destructive',
         });
       } finally {
@@ -135,12 +146,14 @@ export function LeadsManagement() {
         assigned_to: Number.parseInt(formData.assigned_to),
         notes: formData.notes,
       }
+      console.log("Attempting to update lead with ID:", selectedLead.id, "and data:", leadData)
       await api.updateLead(selectedLead.id, leadData)
       setIsEditDialogOpen(false)
       resetForm()
       setSelectedLead(null)
       loadAllData(user!)
     } catch (err) {
+      console.error("Failed to update lead:", err)
       setError("Failed to update lead")
     }
   }
@@ -149,9 +162,11 @@ export function LeadsManagement() {
     if (!confirm("Are you sure you want to delete this lead?")) return
 
     try {
+      console.log("Attempting to delete lead with ID:", id)
       await api.deleteLead(id)
       loadAllData(user!)
     } catch (err) {
+      console.error("Failed to delete lead:", err)
       setError("Failed to delete lead")
     }
   }

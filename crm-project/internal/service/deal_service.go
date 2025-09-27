@@ -35,6 +35,13 @@ func (s *DealService) CreateDeal(ctx context.Context, d models.Deal) (int, error
 	}
 	s.logger.Debug("Claims retrieved from context", "user_id", claims.UserID, "role_id", claims.RoleID)
 
+	// --- PERMISSION CHECK ---
+	// Only Reception can create deals.
+	if claims.RoleID != s.cfg.Roles.ReceptionID {
+		s.logger.Warn("Permission denied for CreateDeal", "user_id", claims.UserID, "role_id", claims.RoleID)
+		return 0, fmt.Errorf("forbidden: only receptionists can create deals")
+	}
+
 	// --- Deal Integrity Validation ---
 	lead, err := s.leadRepo.GetByID(ctx, d.LeadID)
 	if err != nil {
@@ -145,10 +152,8 @@ func (s *DealService) UpdateDeal(ctx context.Context, id int, d models.Deal, use
 	}
 
 	// --- PERMISSION CHECK ---
-	// A user can update if they are a Receptionist OR if they are the original creator.
-	isAllowed := roleID == s.cfg.Roles.ReceptionID || (existingDeal.CreatedBy.Valid && existingDeal.CreatedBy.Int64 == int64(userID))
-
-	if !isAllowed {
+	// Only Reception can update deals.
+	if roleID != s.cfg.Roles.ReceptionID {
 		s.logger.Warn("Permission denied for deal update", "user_id", userID, "role_id", roleID, "deal_id", id, "deal_created_by", existingDeal.CreatedBy)
 		return fmt.Errorf("unauthorized")
 	}
@@ -190,10 +195,8 @@ func (s *DealService) DeleteDeal(ctx context.Context, id int, userID int, roleID
 	}
 
 	// --- PERMISSION CHECK ---
-	// A user can delete if they are a Receptionist OR if they are the original creator.
-	isAllowed := roleID == s.cfg.Roles.ReceptionID || (existingDeal.CreatedBy.Valid && existingDeal.CreatedBy.Int64 == int64(userID))
-
-	if !isAllowed {
+	// Only Reception can delete deals.
+	if roleID != s.cfg.Roles.ReceptionID {
 		s.logger.Warn("Permission denied for deal deletion", "user_id", userID, "role_id", roleID, "deal_id", id, "deal_created_by", existingDeal.CreatedBy)
 		return fmt.Errorf("unauthorized")
 	}
