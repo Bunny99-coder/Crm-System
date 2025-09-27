@@ -203,3 +203,20 @@ func (r *ContactRepo) GetAllForUser(ctx context.Context, userID int) ([]models.C
     err := r.db.SelectContext(ctx, &contacts, query, userID)
     return contacts, err
 }
+
+// UpdateCreatedBy updates the created_by field of a contact.
+func (r *ContactRepo) UpdateCreatedBy(ctx context.Context, contactID int, createdBy int) error {
+	query := `UPDATE contacts SET created_by = $1 WHERE contact_id = $2`
+	result, err := r.db.ExecContext(ctx, query, createdBy, contactID)
+	if err != nil {
+		return err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
+}

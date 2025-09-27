@@ -72,7 +72,7 @@ func (r *NoteRepo) GetNoteByID(id int) (*models.Note, error) {
 // GetNotesByContactID retrieves all notes for a specific contact
 func (r *NoteRepo) GetNotesByContactID(contactID int) ([]models.Note, error) {
     query := `
-        SELECT note_id, user_id, contact_id, lead_id, deal_id, note_text, created_at, updated_at
+        SELECT note_id, user_id, contact_id, lead_id, deal_id, note_text, created_at, updated_at, deleted_at
         FROM notes
         WHERE contact_id = $1 AND deleted_at IS NULL
         ORDER BY created_at DESC
@@ -146,7 +146,7 @@ func (r *NoteRepo) DeleteNote(id int) error {
 // GetNotesByUserID retrieves all notes created by a specific user
 func (r *NoteRepo) GetNotesByUserID(userID int) ([]models.Note, error) {
     query := `
-        SELECT note_id, user_id, contact_id, lead_id, deal_id, note_text, created_at, updated_at
+        SELECT note_id, user_id, contact_id, lead_id, deal_id, note_text, created_at, updated_at, deleted_at
         FROM notes
         WHERE user_id = $1 AND deleted_at IS NULL
         ORDER BY created_at DESC
@@ -165,7 +165,7 @@ func (r *NoteRepo) GetNotesByUserID(userID int) ([]models.Note, error) {
 // GetNotesByDealID retrieves all notes for a specific deal
 func (r *NoteRepo) GetNotesByDealID(dealID int) ([]models.Note, error) {
     query := `
-        SELECT note_id, user_id, contact_id, lead_id, deal_id, note_text, created_at, updated_at
+        SELECT note_id, user_id, contact_id, lead_id, deal_id, note_text, created_at, updated_at, deleted_at
         FROM notes
         WHERE deal_id = $1 AND deleted_at IS NULL
         ORDER BY created_at DESC

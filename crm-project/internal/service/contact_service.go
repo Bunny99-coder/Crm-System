@@ -114,6 +114,7 @@ func (s *ContactService) UpdateContact(ctx context.Context, id int, contact mode
 	s.logger.Debug("Existing contact fetched", "contact_id", id, "created_by", existingContact.CreatedBy)
 
 	// --- PERMISSION CHECK ---
+	s.logger.Info("Permission check values", "claims.RoleID", claims.RoleID, "s.cfg.Roles.ReceptionID", s.cfg.Roles.ReceptionID, "existingContact.CreatedBy", existingContact.CreatedBy, "claims.UserID", claims.UserID)
 	// A user can update if they are a Receptionist OR if they are the original creator.
 	isAllowed := claims.RoleID == s.cfg.Roles.ReceptionID || (existingContact.CreatedBy != nil && *existingContact.CreatedBy == claims.UserID)
 
@@ -166,6 +167,7 @@ func (s *ContactService) DeleteContact(ctx context.Context, id int) error {
 	s.logger.Debug("Existing contact fetched", "contact_id", id, "created_by", existingContact.CreatedBy)
 
 	// --- PERMISSION CHECK ---
+	s.logger.Info("Permission check values", "claims.RoleID", claims.RoleID, "s.cfg.Roles.ReceptionID", s.cfg.Roles.ReceptionID, "existingContact.CreatedBy", existingContact.CreatedBy, "claims.UserID", claims.UserID)
 	isAllowed := claims.RoleID == s.cfg.Roles.ReceptionID || (existingContact.CreatedBy != nil && *existingContact.CreatedBy == claims.UserID)
 
 	if !isAllowed {

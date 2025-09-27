@@ -78,11 +78,11 @@ func NewRouter(
 				r.Put("/tasks/{id}", taskHandler.UpdateTask)
 				r.Delete("/tasks/{id}", taskHandler.DeleteTask)
 
-				r.Get("/notes", noteHandler.GetContactNotes)
-				r.Post("/notes", noteHandler.CreateNote)
-				r.Get("/notes/{noteId}", noteHandler.GetNoteByID)
-				r.Put("/notes/{noteId}", noteHandler.UpdateNote)
-				r.Delete("/notes/{noteId}", noteHandler.DeleteNote)
+				r.Get("/contacts/{contactId}/notes", noteHandler.GetContactNotes)
+				r.Post("/contacts/{contactId}/notes", noteHandler.CreateNote)
+				r.Get("/contacts/{contactId}/notes/{noteId}", noteHandler.GetNoteByID)
+				r.Put("/contacts/{contactId}/notes/{noteId}", noteHandler.UpdateNote)
+				r.Delete("/contacts/{contactId}/notes/{noteId}", noteHandler.DeleteNote)
 
 				r.Get("/events", eventHandler.GetAllEvents)
 				r.Post("/events", eventHandler.CreateEvent)
@@ -96,6 +96,10 @@ func NewRouter(
 				r.Delete("/comm-logs/{logId}", commLogHandler.DeleteCommLog)
 
 				r.Get("/contacts/{contactId}/comm-logs", commLogHandler.GetLogsForContact)
+				r.Post("/contacts/{contactId}/comm-logs", commLogHandler.CreateContactCommLog)
+				r.Put("/contacts/{contactId}/comm-logs/{logId}", commLogHandler.UpdateContactCommLog)
+				r.Delete("/contacts/{contactId}/comm-logs/{logId}", commLogHandler.DeleteContactCommLog)
+
 				r.Get("/users/{userId}/notes", noteHandler.GetUserNotes)
 				r.Get("/users/{userId}/events", eventHandler.GetEventsForUser)
 

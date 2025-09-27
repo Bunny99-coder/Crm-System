@@ -51,10 +51,10 @@ func main() {
 	propertyRepo := postgres.NewPropertyRepo(db)
 	leadRepo := postgres.NewLeadRepo(db)
 	dealRepo := postgres.NewDealRepo(db)
-taskRepo := postgres.NewTaskRepository(db)	
+	taskRepo := postgres.NewTaskRepository(db)	
 	commLogRepo := postgres.NewCommLogRepository(db) // Corrected from NewCommLogRepo
-noteRepo := postgres.NewNoteRepository(db) // <- pass the underlying *sql.DB
-eventRepo := postgres.NewEventRepository(db)
+	noteRepo := postgres.NewNoteRepository(db) // <- pass the underlying *sql.DB
+	eventRepo := postgres.NewEventRepository(db)
 
 
 
@@ -66,10 +66,10 @@ eventRepo := postgres.NewEventRepository(db)
 	leadService := service.NewLeadService(leadRepo, contactRepo, userRepo, propertyRepo, cfg, logger)
 	dealService := service.NewDealService(dealRepo, leadRepo, propertyRepo, cfg, logger)
 	reportService := service.NewReportService(userRepo, leadRepo, dealRepo, cfg, logger)
-taskService := service.NewTaskService(taskRepo, cfg, logger)	
+	taskService := service.NewTaskService(taskRepo, cfg, logger)	
 	commLogService := service.NewCommLogService(commLogRepo) // Corrected to match service constructor
-noteService := service.NewNoteService(noteRepo)
-eventService := service.NewEventService(eventRepo)
+	noteService := service.NewNoteService(noteRepo)
+	eventService := service.NewEventService(eventRepo)
 	// Handler Layer
 
 
@@ -101,6 +101,28 @@ eventHandler := handlers.NewEventHandler(eventService)	// Router
 		noteHandler,
 		eventHandler,
 	)
+
+	// --- DATA MIGRATION ---
+    users, err := userRepo.GetAll(context.Background())
+    if err != nil {
+        logger.Error("could not get all users", "error", err)
+    }
+    if len(users) > 0 {
+        defaultUser := users[0]
+        contacts, err := contactRepo.GetAll(context.Background())
+        if err != nil {
+            logger.Error("could not get all contacts", "error", err)
+        }
+        for _, contact := range contacts {
+            if contact.CreatedBy == nil {
+                logger.Info("updating contact with nil created_by", "contact_id", contact.ID)
+                err := contactRepo.UpdateCreatedBy(context.Background(), contact.ID, defaultUser.ID)
+                if err != nil {
+                    logger.Error("could not update contact", "contact_id", contact.ID, "error", err)
+                }
+            }
+        }
+    }
 
 	router.Get("/reports/my-sales", reportHandler.GetMySalesReport)
 	
