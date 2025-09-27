@@ -118,7 +118,7 @@ func (s *TaskService) GetTasksByDealID(ctx context.Context, dealID int) ([]model
 }
 
 // GetAllTasks retrieves all tasks with permission check
-func (s *TaskService) GetAllTasks(ctx context.Context) ([]models.Task, error) {
+func (s *TaskService) GetAllTasks(ctx context.Context, assignedToUserID *int) ([]models.Task, error) {
 	claims, ok := util.GetClaimsFromContext(ctx)
 	if !ok {
 		return nil, errors.New("could not retrieve user claims from context")
@@ -128,6 +128,12 @@ func (s *TaskService) GetAllTasks(ctx context.Context) ([]models.Task, error) {
 	if claims.RoleID == s.cfg.Roles.SalesAgentID {
 		s.logger.Debug("fetching tasks for single sales agent", "user_id", claims.UserID)
 		return s.taskRepo.GetTasksForUser(claims.UserID)
+	}
+
+	// If assignedToUserID is provided, filter by that user.
+	if assignedToUserID != nil && *assignedToUserID > 0 {
+		s.logger.Debug("fetching tasks for specific user", "assigned_to_user_id", *assignedToUserID)
+		return s.taskRepo.GetTasksForUser(*assignedToUserID)
 	}
 
 	// Otherwise (for Reception/Manager), show all tasks.
@@ -166,10 +172,12 @@ func (s *TaskService) UpdateTask(ctx context.Context, task *models.Task) error {
 	}
 
 	// --- PERMISSION CHECK ---
-	// Only Reception (Manager) can update tasks.
-	if claims.RoleID != s.cfg.Roles.ReceptionID {
-		s.logger.Warn("Permission denied for UpdateTask", "user_id", claims.UserID, "role_id", claims.RoleID, "task_id", task.ID)
-		return fmt.Errorf("forbidden: only managers can update tasks")
+	// A user can update if they are a Receptionist OR if they are the assigned sales agent.
+	isAllowed := claims.RoleID == s.cfg.Roles.ReceptionID || (existingTask.AssignedTo == claims.UserID)
+
+	if !isAllowed {
+		s.logger.Warn("Permission denied for UpdateTask", "user_id", claims.UserID, "role_id", claims.RoleID, "task_id", task.ID, "task_assigned_to", existingTask.AssignedTo)
+		return fmt.Errorf("forbidden: you do not have permission to update this task")
 	}
 
 	// Sales agents can only update tasks assigned to them. Managers can reassign.

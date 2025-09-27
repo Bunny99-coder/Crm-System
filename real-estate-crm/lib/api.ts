@@ -421,7 +421,13 @@ createNoteForDeal(dealId: number, note: { content: string }) {
   getContactActivity(contactId: number) { return this.request<Activity[]>(`/contacts/${contactId}/activity`) }
 
   // ========== Tasks ==========
-  getTasks() { return this.request<Task[]>("/tasks") }
+  async getTasks(assignedToUserId?: number): Promise<Task[]> {
+    let url = "/tasks"
+    if (assignedToUserId) {
+      url += `?assigned_to=${assignedToUserId}`
+    }
+    return this.request<Task[]>(url)
+  }
   getTaskById(id: number) { return this.request<Task>(`/tasks/${id}`) }
   createTask(task: Omit<Task, "id">) {
     return this.request<Task>("/tasks", {

@@ -79,8 +79,9 @@ export function TasksManagement() {
       const taskData = {
         task_name: formData.task_name,
         task_description: formData.task_description,
-        due_date: formData.due_date,
-        status: formData.status as "Pending" | "Completed", // Explicitly cast status
+        // FIX: Format due_date to match backend's expected RFC3339 format (e.g., "2006-01-02T15:04:05Z")
+        due_date: new Date(formData.due_date).toISOString(), // Converts to "YYYY-MM-DDTHH:MM:SS.sssZ"
+        status: formData.status as "Pending" | "Completed",
         assigned_to: Number.parseInt(formData.assigned_to),
       }
       await api.createTask(taskData)
@@ -447,7 +448,7 @@ export function TasksManagement() {
                   </TableCell>
                   <TableCell>{getStatusBadge(task.status)}</TableCell>
                   <TableCell>
-                    {hasRole(ROLE_RECEPTION) && (
+                    {(user && (user.role_id === ROLE_RECEPTION || user.role_id === ROLE_SALES_AGENT)) && (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="sm">
@@ -455,21 +456,30 @@ export function TasksManagement() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => openEditDialog(task)}>
-                            <Edit className="mr-2 h-4 w-4" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleToggleTaskStatus(task)}>
-                            <CheckSquare className="mr-2 h-4 w-4" />
-                            {task.status === "Pending" ? "Mark Complete" : "Mark Pending"}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="text-destructive"
-                            onClick={() => task.id && handleDeleteTask(task.id)}
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete
-                          </DropdownMenuItem>
+                          {/* Edit Button */}
+                          {(user.role_id === ROLE_RECEPTION || (user.role_id === ROLE_SALES_AGENT && task.assigned_to === user.id)) && (
+                            <DropdownMenuItem onClick={() => openEditDialog(task)}>
+                              <Edit className="mr-2 h-4 w-4" />
+                              Edit
+                            </DropdownMenuItem>
+                          )}
+                          {/* Mark Complete/Pending Button */}
+                          {(user.role_id === ROLE_RECEPTION || (user.role_id === ROLE_SALES_AGENT && task.assigned_to === user.id)) && (
+                            <DropdownMenuItem onClick={() => handleToggleTaskStatus(task)}>
+                              <CheckSquare className="mr-2 h-4 w-4" />
+                              {task.status === "Pending" ? "Mark Complete" : "Mark Pending"}
+                            </DropdownMenuItem>
+                          )}
+                          {/* Delete Button (only for Reception) */}
+                          {user.role_id === ROLE_RECEPTION && (
+                            <DropdownMenuItem
+                              className="text-destructive"
+                              onClick={() => task.id && handleDeleteTask(task.id)}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete
+                            </DropdownMenuItem>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     )}
