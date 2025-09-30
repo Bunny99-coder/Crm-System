@@ -1,1 +1,0 @@
-ALTER TABLE contacts DROP COLUMN updated_at;

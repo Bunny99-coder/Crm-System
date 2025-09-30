@@ -1,1 +1,0 @@
-ALTER TABLE communication_logs ADD COLUMN updated_at TIMESTAMPTZ;

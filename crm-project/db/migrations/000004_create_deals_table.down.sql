@@ -1,2 +1,0 @@
-DROP TABLE IF EXISTS deals;
-DROP TABLE IF EXISTS deal_stages;

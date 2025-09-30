@@ -1,1 +1,0 @@
-ALTER TABLE communication_logs DROP COLUMN updated_at;
